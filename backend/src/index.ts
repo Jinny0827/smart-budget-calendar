@@ -2,6 +2,7 @@ import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database';
+import authRoutes from "./routes/auth-routes";
 
 // 환경변수 로드
 dotenv.config();
@@ -34,6 +35,12 @@ app.get('/', (_req: Request, res: Response)=> {
 app.get('/health', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'OK' });
 });
+
+
+// API 라우트 연결
+app.use('/api/auth', authRoutes);
+
+
 
 // 서버 시작 함수
 const startServer = async () => {
