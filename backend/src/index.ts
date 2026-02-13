@@ -3,6 +3,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import { connectDB } from './config/database';
 import authRoutes from "./routes/auth-routes";
+import scheduleRoutes from "./routes/schedule-routes";
+import expenseRoutes from "./routes/expense-routes";
 
 // 환경변수 로드
 dotenv.config();
@@ -39,6 +41,8 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // API 라우트 연결
 app.use('/api/auth', authRoutes);
+app.use('/api/schedule', scheduleRoutes);
+app.use('/api/expense', expenseRoutes);
 
 
 
