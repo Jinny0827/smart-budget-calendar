@@ -1,0 +1,38 @@
+### 0. 회원가입
+POST http://localhost:5000/api/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@test.com",
+  "password": "test1234",
+  "name": "테스트"
+}
+
+### 1. 로그인
+POST http://localhost:5000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@test.com",
+  "password": "test1234"
+}
+
+### 2. 인사이트 조회
+GET http://localhost:5000/api/insights
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTk2YjJhZDZiMGQ2YWM5ZGM3ZDg0MmIiLCJpYXQiOjE3NzE0ODY5MDUsImV4cCI6MTc3MjA5MTcwNX0.DWzrXuFO9B-5VWGoJ8mwYtKUdNkMDrHy2_BnrgA9Kes
+
+### 3. 강제 재분석
+POST http://localhost:5000/api/insights/analyze
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTk2YjJhZDZiMGQ2YWM5ZGM3ZDg0MmIiLCJpYXQiOjE3NzE0ODY5MDUsImV4cCI6MTc3MjA5MTcwNX0.DWzrXuFO9B-5VWGoJ8mwYtKUdNkMDrHy2_BnrgA9Kes
+
+### 4. 지출 추가
+POST http://localhost:5000/api/expenses
+Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI2OTk2YjJhZDZiMGQ2YWM5ZGM3ZDg0MmIiLCJpYXQiOjE3NzE0ODY5MDUsImV4cCI6MTc3MjA5MTcwNX0.DWzrXuFO9B-5VWGoJ8mwYtKUdNkMDrHy2_BnrgA9Kes
+Content-Type: application/json
+
+{
+  "amount": 45000,
+  "category": "식비",
+  "description": "저녁 외식",
+  "date": "2026-02-19"
+}

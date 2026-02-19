@@ -1,11 +1,17 @@
 import { Request, Response } from 'express';
 import aiService from "../services/ai-service";
+import groqService from "../services/groq-service";
 
-// AI 인사이트 목록 조회 (전체 분석 실행)
+// AI 인사이트 목록 조회 (Gemini 캐시 우선, 실패 시 룰 기반 폴백)
 export const getInsights = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const insights = await aiService.runFullAnalysis(userId);
+
+        let insights = await groqService.analyzeWithCache(userId);
+
+        if (!insights || insights.length === 0) {
+            insights = await aiService.runFullAnalysis(userId);
+        }
 
         res.status(200).json({
             success: true,
@@ -24,7 +30,14 @@ export const getInsights = async (req: Request, res: Response): Promise<void> =>
 export const analyzeInsights = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const insights = await aiService.runFullAnalysis(userId);
+
+        // 캐시 무효화 → 강제 재분석
+        await groqService.invalidateCache(userId);
+        let insights = await groqService.analyzeWithCache(userId);
+
+        if (!insights || insights.length === 0) {
+            insights = await aiService.runFullAnalysis(userId);
+        }
 
         res.status(200).json({
             success: true,
