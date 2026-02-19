@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Expense from '../models/Expense';
 import Schedule from '../models/Schedule';
 
@@ -197,18 +198,21 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
         const userId = (req as any).userId;
         const { startDate, endDate } = req.query;
 
+        // userId를 ObjectId로 변환 (aggregate에서 정확한 매칭 필요)
+        const userObjectId = new mongoose.Types.ObjectId(userId);
+
         let dateFilter: any = {};
         if (startDate) dateFilter.$gte = new Date(startDate as string);
         if (endDate) dateFilter.$lte = new Date(endDate as string);
 
+        const matchStage: any = { userId: userObjectId };
+        if (Object.keys(dateFilter).length > 0) {
+            matchStage.date = dateFilter;
+        }
+
         // 카테고리별 합계
         const categoryStats = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
-                }
-            },
+            { $match: matchStage },
             {
                 $group: {
                     _id: '$category',
@@ -216,19 +220,12 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
                     count: { $sum: 1 }
                 }
             },
-            {
-                $sort: { total: -1 }
-            }
+            { $sort: { total: -1 } }
         ]);
 
         // 전체 합계
-        const totalExpense = await Expense.aggregate([
-            {
-                $match: {
-                    userId: userId,
-                    ...(Object.keys(dateFilter).length > 0 && { date: dateFilter })
-                }
-            },
+        const totalResult = await Expense.aggregate([
+            { $match: matchStage },
             {
                 $group: {
                     _id: null,
@@ -242,7 +239,7 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
             success: true,
             data: {
                 categoryStats,
-                total: totalExpense[0] || { total: 0, count: 0 }
+                total: totalResult[0] || { total: 0, count: 0 }
             }
         });
     } catch (error) {

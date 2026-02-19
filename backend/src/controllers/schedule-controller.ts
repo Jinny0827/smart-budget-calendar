@@ -1,18 +1,17 @@
-import {Request, Response} from 'express';
+import { Request, Response } from 'express';
 import Schedule from '../models/Schedule';
 
-
 // 일정 목록 조회
-export const getSchedules = async (req: Request, res: Response) : Promise<void> => {
+export const getSchedules = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        
-        // 쿼리 파라미터로 필터링 (선택사항)
-        const { category, startDate, endDate } = req.body;
+
+        // 쿼리 파라미터로 필터링
+        const { category, startDate, endDate } = req.query;
 
         let query: any = { userId };
 
-        if(category) {
+        if (category) {
             query.category = category;
         }
 
@@ -24,7 +23,7 @@ export const getSchedules = async (req: Request, res: Response) : Promise<void> 
 
         const schedules = await Schedule.find(query)
             .populate('expenses')
-            .sort({ date: -1});
+            .sort({ date: -1 });
 
         res.status(200).json({
             success: true,
@@ -37,11 +36,10 @@ export const getSchedules = async (req: Request, res: Response) : Promise<void> 
             message: '서버 에러가 발생했습니다'
         });
     }
-}
-
+};
 
 // 일정 생성
-export const createSchedule = async (req: Request, res: Response) : Promise<void> => {
+export const createSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
         const { title, date, category, isRecurring, recurringPattern } = req.body;
@@ -69,7 +67,6 @@ export const createSchedule = async (req: Request, res: Response) : Promise<void
             message: '일정이 생성되었습니다',
             data: { schedule }
         });
-
     } catch (error) {
         console.error('일정 생성 에러:', error);
         res.status(500).json({
@@ -77,10 +74,10 @@ export const createSchedule = async (req: Request, res: Response) : Promise<void
             message: '서버 에러가 발생했습니다'
         });
     }
-}
+};
 
 // 일정 상세 조회
-export const getSchedule = async (req: Request, res: Response) : Promise<void> => {
+export const getSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
         const { id } = req.params;
@@ -88,7 +85,7 @@ export const getSchedule = async (req: Request, res: Response) : Promise<void> =
         const schedule = await Schedule.findOne({ _id: id, userId })
             .populate('expenses');
 
-        if(!schedule) {
+        if (!schedule) {
             res.status(404).json({
                 success: false,
                 message: '일정을 찾을 수 없습니다'
@@ -100,7 +97,6 @@ export const getSchedule = async (req: Request, res: Response) : Promise<void> =
             success: true,
             data: { schedule }
         });
-
     } catch (error) {
         console.error('일정 조회 에러:', error);
         res.status(500).json({
@@ -108,17 +104,17 @@ export const getSchedule = async (req: Request, res: Response) : Promise<void> =
             message: '서버 에러가 발생했습니다'
         });
     }
-}
+};
 
 // 일정 수정
-export const updateSchedule = async (req: Request, res: Response) : Promise<void> => {
+export const updateSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
         const { id } = req.params;
         const updateData = req.body;
 
         const schedule = await Schedule.findOneAndUpdate(
-            {_id: id, userId },
+            { _id: id, userId },
             updateData,
             { new: true, runValidators: true }
         );
@@ -143,10 +139,10 @@ export const updateSchedule = async (req: Request, res: Response) : Promise<void
             message: '서버 에러가 발생했습니다'
         });
     }
-}
+};
 
 // 일정 삭제
-export const deleteSchedule = async (req: Request, res: Response) : Promise<void> => {
+export const deleteSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
         const { id } = req.params;
@@ -165,7 +161,6 @@ export const deleteSchedule = async (req: Request, res: Response) : Promise<void
             success: true,
             message: '일정이 삭제되었습니다'
         });
-
     } catch (error) {
         console.error('일정 삭제 에러:', error);
         res.status(500).json({
@@ -173,4 +168,84 @@ export const deleteSchedule = async (req: Request, res: Response) : Promise<void
             message: '서버 에러가 발생했습니다'
         });
     }
-}
+};
+
+// AI 학습된 반복 패턴 조회
+export const getSchedulePatterns = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = (req as any).userId;
+
+        // 반복 일정으로 등록된 것만 조회
+        const recurringSchedules = await Schedule.find({
+            userId,
+            isRecurring: true
+        }).sort({ date: -1 });
+
+        // 제목 기준으로 그룹핑하여 패턴 분석
+        const patternMap = new Map<string, {
+            title: string;
+            category: string;
+            frequency: string;
+            interval: number;
+            occurrences: Date[];
+            lastOccurrence: Date;
+        }>();
+
+        for (const schedule of recurringSchedules) {
+            const key = `${schedule.title}_${schedule.category}`;
+            if (!patternMap.has(key)) {
+                patternMap.set(key, {
+                    title: schedule.title,
+                    category: schedule.category,
+                    frequency: schedule.recurringPattern?.frequency || 'monthly',
+                    interval: schedule.recurringPattern?.interval || 1,
+                    occurrences: [],
+                    lastOccurrence: schedule.date
+                });
+            }
+            const pattern = patternMap.get(key)!;
+            pattern.occurrences.push(schedule.date);
+
+            // 가장 최근 날짜 업데이트
+            if (schedule.date > pattern.lastOccurrence) {
+                pattern.lastOccurrence = schedule.date;
+            }
+        }
+
+        // 패턴 배열로 변환 + 다음 제안 날짜 계산
+        const patterns = Array.from(patternMap.values()).map((pattern) => {
+            const intervalDays =
+                pattern.frequency === 'daily' ? pattern.interval :
+                    pattern.frequency === 'weekly' ? pattern.interval * 7 :
+                        pattern.interval * 30;
+
+            const nextSuggestion = new Date(pattern.lastOccurrence);
+            nextSuggestion.setDate(nextSuggestion.getDate() + intervalDays);
+
+            // 신뢰도: 발생 횟수 기반 (최대 1.0)
+            const confidence = Math.min(pattern.occurrences.length / 5, 1.0);
+
+            return {
+                title: pattern.title,
+                category: pattern.category,
+                frequency: pattern.frequency,
+                interval: pattern.interval,
+                lastOccurrence: pattern.lastOccurrence,
+                nextSuggestion,
+                confidence,
+                occurrenceCount: pattern.occurrences.length
+            };
+        });
+
+        res.status(200).json({
+            success: true,
+            data: { patterns }
+        });
+    } catch (error) {
+        console.error('패턴 조회 에러:', error);
+        res.status(500).json({
+            success: false,
+            message: '서버 에러가 발생했습니다'
+        });
+    }
+};

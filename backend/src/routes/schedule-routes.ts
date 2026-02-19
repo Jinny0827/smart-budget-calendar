@@ -4,7 +4,7 @@ import {
     createSchedule,
     getSchedule,
     updateSchedule,
-    deleteSchedule
+    deleteSchedule, getSchedulePatterns
 } from "../controllers/schedule-controller";
 import { authenticationToken } from "../middleware/auth";
 
@@ -12,6 +12,9 @@ const router = express.Router();
 
 // 모든 라우트에 인증 미들웨어 적용
 router.use(authenticationToken);
+
+// 패턴 조회
+router.get('/patterns', getSchedulePatterns);
 
 // 일정 목록 조회
 router.get('/', getSchedules);

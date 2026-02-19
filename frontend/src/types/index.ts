@@ -60,3 +60,30 @@ export interface ExpenseStats {
         count: number;
     };
 }
+
+// AI 인사이트 결과
+export interface InsightResult {
+    type: 'anomaly_alert' | 'budget_suggestion' | 'pattern_insight' | 'schedule_recommendation';
+    content: string;
+    priority: 'high' | 'medium' | 'low';
+    data: {
+        category?: string;
+        amount?: number;
+        scheduleId?: string;
+        suggestedBudget?: number;
+        averageAmount?: number;
+        changeRate?: number;
+    };
+}
+
+// 일정 패턴
+export interface SchedulePattern {
+    title: string;
+    category: string;
+    frequency: 'daily' | 'weekly' | 'monthly';
+    interval: number;
+    lastOccurrence: string;
+    nextSuggestion: string;
+    confidence: number;
+    occurrenceCount: number;
+}
