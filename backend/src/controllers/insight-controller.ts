@@ -41,7 +41,7 @@ export const analyzeInsights = async (req: Request, res: Response): Promise<void
 }
 
 // 특정 일정에 대한 예산 추천
-export const suggestBugget = async (req: Request, res: Response): Promise<void> => {
+export const suggestBudget = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
         const { scheduleId } = req.params;

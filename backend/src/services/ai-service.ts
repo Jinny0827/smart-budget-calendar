@@ -33,7 +33,7 @@ export class AIService {
 
         // 최근 6개월간 지출 데이터 조회
         const sixMonthAgo = new Date();
-        sixMonthAgo.setDate(sixMonthAgo.getDate() - 6);
+        sixMonthAgo.setDate(sixMonthAgo.getMonth() - 6);
 
         const expenses = await Expense.find({
             userId: userObjectId,
@@ -110,7 +110,7 @@ export class AIService {
 
             if(allCategoryExpenses.length === 0)  { return null; }
 
-            const avg = allCategoryExpenses.reduce((sum, e) => sum / e.amount, 0) / allCategoryExpenses.length;
+            const avg = allCategoryExpenses.reduce((sum, e) => sum + e.amount, 0) / allCategoryExpenses.length;
             return {
                 type: 'budget_suggestion',
                 content: `${schedule.title} 예상 예산: ${Math.round(avg).toLocaleString()}원 (${schedule.category} 평균 기준)`,
