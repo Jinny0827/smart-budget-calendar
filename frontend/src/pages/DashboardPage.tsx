@@ -14,17 +14,16 @@ const CATEGORY_COLORS: Record<string, string> = {
     식비: '#FF6384', 교통: '#36A2EB', 의료: '#FF9F40', 운동: '#4BC0C0',
     여행: '#9966FF', 쇼핑: '#FF6B6B', 문화: '#C9CBCF', 교육: '#FFCD56', 기타: '#B0BEC5',
 };
-
 const DEFAULT_COLOR = '#B0BEC5';
 
 const formatYAxis = (value: number) => {
     if (value >= 10000) return `${(value / 10000).toFixed(0)}만`;
     if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
     return String(value);
-}
+};
 
-const CustomTooltip = ({ active, payload, label}: any) => {
-    if(active && payload && payload.length) {
+const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
         return (
             <div className="bg-white border rounded shadow p-2 text-sm">
                 <p className="font-semibold text-gray-700">{label}일</p>
@@ -32,66 +31,66 @@ const CustomTooltip = ({ active, payload, label}: any) => {
             </div>
         );
     }
-
     return null;
-}
+};
 
 function DashboardPage() {
     const navigate = useNavigate();
     const user = getCurrentUser();
 
-    // 상태 관리
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [stats, setStats] = useState<ExpenseStats | null>(null);
     const [insights, setInsights] = useState<InsightResult[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+    const [insightError, setInsightError] = useState(false); // AI 인사이트 에러 상태
 
-    // 이번 달 시작/끝 날짜 계산
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
     const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
 
-    // 데이터 로드
     useEffect(() => {
-        const fetchData = async () => {
+        const fetchAll = async () => {
             try {
                 setLoading(true);
-                const [expenseData, scheduleData, statsData, insightData] = await Promise.all([
+                const [expenseData, scheduleData, statsData] = await Promise.all([
                     getExpenses({ startDate: monthStart, endDate: monthEnd }),
                     getSchedules(),
                     getExpenseStats({ startDate: monthStart, endDate: monthEnd }),
-                    getInsights(),
                 ]);
                 setExpenses(expenseData);
                 setSchedules(scheduleData);
                 setStats(statsData);
-                setInsights(insightData);
+
+                // 인사이트는 expenses 로드 후 별도 처리
+                try {
+                    setInsightError(false);
+                    const insightData = await getInsights();
+
+                    // 지출이 있는데 인사이트가 비면 Groq 장애로 판단
+                    if (insightData.length === 0 && expenseData.length > 0) {
+                        setInsightError(true);
+                    } else {
+                        setInsights(insightData);
+                    }
+                } catch {
+                    setInsightError(true);
+                }
             } catch (err) {
                 setError('데이터를 불러오는데 실패했습니다');
-                console.error(err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchData();
+
+        fetchAll();
     }, []);
 
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
+    const handleLogout = () => { logout(); navigate('/login'); };
 
-    // 이번 달 총 지출
     const totalExpense = stats?.total?.total || 0;
-
-    // 앞으로 예정된 일정 (오늘 이후)
-    const upcomingSchedules = schedules.filter(
-        (s) => new Date(s.date) >= new Date()
-    );
-
-    // 최근 지출 5개
+    const upcomingSchedules = schedules.filter((s) => new Date(s.date) >= new Date());
     const recentExpenses = expenses.slice(0, 5);
 
     // 파이차트 데이터
@@ -99,21 +98,18 @@ function DashboardPage() {
         name: cat._id,
         value: cat.total,
     }));
-    
-    // 바 차트 : 오늘까지 일별 지출 합계
+
+    // 바차트: 오늘까지 일별 지출
     const today = now.getDate();
     const dailyMap = new Map<number, number>();
     for (const expense of expenses) {
         const day = new Date(expense.date).getDate();
         dailyMap.set(day, (dailyMap.get(day) || 0) + expense.amount);
     }
-
     const barData = Array.from({ length: today }, (_, i) => ({
         day: i + 1,
-        금액 : dailyMap.get(i + 1) || 0,
+        금액: dailyMap.get(i + 1) || 0,
     }));
-
-
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -261,9 +257,18 @@ function DashboardPage() {
                             </div>
 
                             {/* AI 인사이트 */}
-                            {insights.length > 0 && (
-                                <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
-                                    <h2 className="text-xl font-bold mb-4">🤖 AI 인사이트</h2>
+                            <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
+                                <h2 className="text-xl font-bold mb-4">🤖 AI 인사이트</h2>
+                                {insightError ? (
+                                    // AI 서비스 에러 시
+                                    <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg text-gray-500">
+                                        <span className="text-2xl">🔧</span>
+                                        <div>
+                                            <p className="font-medium">AI 분석 서비스 점검 중입니다</p>
+                                            <p className="text-sm text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
+                                        </div>
+                                    </div>
+                                ) : insights.length > 0 ? (
                                     <ul className="space-y-3">
                                         {insights.map((insight, idx) => (
                                             <li key={idx} className={`p-4 rounded-lg border-l-4 ${
@@ -280,8 +285,12 @@ function DashboardPage() {
                                             </li>
                                         ))}
                                     </ul>
-                                </div>
-                            )}
+                                ) : (
+                                    // 데이터 없음
+                                    <p className="text-gray-400 text-center py-4">분석할 데이터가 없습니다. 지출을 추가해보세요!</p>
+                                )}
+                            </div>
+
                         </div>
                     </>
                 )}

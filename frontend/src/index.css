@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* react-big-calendar Tailwind 충돌 방지 */
+.rbc-calendar {
+    font-family: inherit;
+}
+.rbc-toolbar button {
+    cursor: pointer;
+}
+.rbc-today {
+    background-color: #eff6ff;
+}
+.rbc-selected-cell {
+    background-color: #dbeafe;
+}

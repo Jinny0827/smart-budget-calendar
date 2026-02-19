@@ -24,6 +24,7 @@ export interface Schedule {
     userId: string;
     title: string;
     date: string;
+    endDate?: string;
     category: string;
     expenses: string[] | Expense[];
     isRecurring: boolean;

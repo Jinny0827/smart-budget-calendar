@@ -84,7 +84,7 @@ class GroqService {
             return this.parseResponse(responseText);
         } catch (error) {
             console.error('Groq 분석 오류:', error);
-            return [];
+            throw error;
         }
     }
 
@@ -123,7 +123,15 @@ class GroqService {
             "priority": "high" | "medium" | "low",
             "data": { "category": "카테고리명", "amount": 0, "changeRate": 0 }
           }
-        ]`;
+        ]
+        
+         ## 분석 기준:
+        - 전월 대비 30% 이상 증가 시 경고 (anomaly_alert)
+        - 예정 일정 대비 예산 조언 (schedule_recommendation)
+        - 절약 중인 카테고리 칭찬 (pattern_insight)
+        - 데이터가 적어도 반드시 최소 3개 이상 생성할 것
+        - 데이터가 없는 항목은 일반적인 재정 조언으로 채울 것
+        `;
     }
 
     private async callGroqAPI(prompt: string): Promise<string> {

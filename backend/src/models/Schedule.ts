@@ -5,6 +5,7 @@ export interface ISchedule extends Document {
     userId: mongoose.Types.ObjectId;
     title: string;
     date: Date;
+    endDate?: Date;
     category: string;
     expenses: mongoose.Types.ObjectId[]; // 관련 지출 ID들
     isRecurring: boolean;
@@ -32,6 +33,10 @@ const ScheduleSchema = new Schema<ISchedule>(
         date: {
             type: Date,
             required: [true, '일정 날짜는 필수입니다']
+        },
+        endDate: {
+            type: Date,
+            required: false
         },
         category: {
             type: String,
