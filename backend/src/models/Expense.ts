@@ -8,6 +8,7 @@ export interface IExpense extends Document {
     description: string;
     date: Date;
     scheduleId?: mongoose.Types.ObjectId;
+    type: 'income' | 'expense';
     createdAt: Date;
     updatedAt: Date;
 }
@@ -28,8 +29,18 @@ const ExpenseSchema = new Schema<IExpense>(
         category: {
             type: String,
             required: [true, '카테고리는 필수입니다'],
-            enum: ['식비', '교통', '쇼핑', '문화', '의료', '교육', '기타'],
+            enum: [
+                // 지출 카테고리
+                '식비', '교통', '쇼핑', '문화', '의료', '교육', '운동', '여행', '기타',
+                // 수입 카테고리
+                '급여', '부업', '사업', '투자', '용돈', '환급'
+            ],
             default: '기타'
+        },
+        type: {
+            type: String,
+            enum: ['income', 'expense'],
+            default: 'expense'
         },
         description: {
             type: String,

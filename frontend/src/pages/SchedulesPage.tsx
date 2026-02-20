@@ -37,7 +37,9 @@ const CATEGORY_COLORS: Record<string, string> = {
 const emptyForm = {
     title: '',
     date: '',
+    startTime: '',
     endDate: '',
+    endTime: '',
     category: '기타',
     isRecurring: false,
     recurringPattern: { frequency: 'monthly' as 'daily' | 'weekly' | 'monthly', interval: 1 },
@@ -49,7 +51,7 @@ interface CalendarEvent {
     title: string;
     start: Date;
     end: Date;
-    type: 'schedule' | 'expense';
+    type: 'schedule' | 'expense' | 'income';
     resource: Schedule | Expense;
 }
 
@@ -150,12 +152,13 @@ function SchedulesPage() {
 
     const expenseEvents: CalendarEvent[] = expenses.map((e) => {
         const date = new Date(e.date);
+        const isIncome = e.type === 'income';
         return {
             id: e._id,
-            title: `💸 ${e.description} (${e.amount.toLocaleString()}원)`,
+            title: `${isIncome ? '💰' : '💸'} ${e.description} (${e.amount.toLocaleString()}원)`,
             start: date,
             end: date,
-            type: 'expense',
+            type: isIncome ? 'income' : 'expense',
             resource: e,
         };
     });
@@ -164,6 +167,18 @@ function SchedulesPage() {
 
     // ─── 이벤트 스타일 ───────────────────────────────────────
     const eventStyleGetter = useCallback((event: CalendarEvent) => {
+        if (event.type === 'income') {
+            return {
+                style: {
+                    backgroundColor: '#f0fdf4',
+                    borderLeft: '3px solid #22c55e',
+                    borderRadius: '4px',
+                    color: '#374151',
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                },
+            };
+        }
         if (event.type === 'expense') {
             return {
                 style: {
@@ -194,28 +209,36 @@ function SchedulesPage() {
     // ─── 빈 날짜 드래그 범위 선택 → 생성 모달 ───────────────
     const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
         const startStr = format(start, 'yyyy-MM-dd');
+        const startTimeStr = format(start, 'HH:mm');
         const endStr = format(end, 'yyyy-MM-dd');
+        const endTimeStr = format(end, 'HH:mm');
         setEditingId(null);
         setForm({
             ...emptyForm,
             date: startStr,
+            startTime: startTimeStr === '00:00' ? '' : startTimeStr,
             endDate: startStr === endStr ? '' : endStr,
+            endTime: endTimeStr === '00:00' ? '' : endTimeStr,
         });
         setShowModal(true);
     }, []);
 
     // ─── 이벤트 클릭 ────────────────────────────────────────
     const handleSelectEvent = useCallback((event: CalendarEvent) => {
-        if (event.type === 'expense') {
+        if (event.type === 'expense' || event.type === 'income') {
             navigate('/expenses');
             return;
         }
         const s = event.resource as Schedule;
+        const startDate = new Date(s.date);
+        const endDate = s.endDate ? new Date(s.endDate) : null;
         setEditingId(s._id);
         setForm({
             title: s.title,
             date: s.date.split('T')[0],
+            startTime: format(startDate, 'HH:mm') === '00:00' ? '' : format(startDate, 'HH:mm'),
             endDate: s.endDate ? s.endDate.split('T')[0] : '',
+            endTime: endDate ? (format(endDate, 'HH:mm') === '00:00' ? '' : format(endDate, 'HH:mm')) : '',
             category: s.category,
             isRecurring: s.isRecurring,
             recurringPattern: s.recurringPattern ?? { frequency: 'monthly', interval: 1 },
@@ -235,7 +258,13 @@ function SchedulesPage() {
         }
         try {
             setSubmitting(true);
-            const payload = { ...form, endDate: form.endDate || undefined };
+            const payload = {
+                ...form,
+                date: form.startTime ? `${form.date}T${form.startTime}` : form.date,
+                endDate: form.endDate
+                    ? (form.endTime ? `${form.endDate}T${form.endTime}` : form.endDate)
+                    : undefined,
+            };
             if (editingId) {
                 await updateSchedule(editingId, payload);
             } else {
@@ -321,6 +350,10 @@ function SchedulesPage() {
                                 {cat}
                             </span>
                         ))}
+                        <span className="flex items-center gap-1">
+                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#f0fdf4', border: '1px solid #22c55e' }} />
+                            수입
+                        </span>
                         <span className="flex items-center gap-1">
                             <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fef2f2', border: '1px solid #ef4444' }} />
                             지출
@@ -431,7 +464,7 @@ function SchedulesPage() {
                                 />
                             </div>
 
-                            {/* 시작일 / 종료일 */}
+                            {/* 시작일 / 시작 시간 */}
                             <div className="grid grid-cols-2 gap-3">
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">시작일 *</label>
@@ -444,6 +477,21 @@ function SchedulesPage() {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        시작 시간 <span className="text-gray-400 font-normal">(선택)</span>
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={form.startTime}
+                                        onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* 종료일 / 종료 시간 */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
                                         종료일 <span className="text-gray-400 font-normal">(선택)</span>
                                     </label>
                                     <input
@@ -451,6 +499,17 @@ function SchedulesPage() {
                                         value={form.endDate}
                                         min={form.date}
                                         onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                                        종료 시간 <span className="text-gray-400 font-normal">(선택)</span>
+                                    </label>
+                                    <input
+                                        type="time"
+                                        value={form.endTime}
+                                        onChange={(e) => setForm({ ...form, endTime: e.target.value })}
                                         className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     />
                                 </div>

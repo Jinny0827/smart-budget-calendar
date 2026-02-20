@@ -7,6 +7,7 @@ import scheduleRoutes from "./routes/schedule-routes";
 import expenseRoutes from "./routes/expense-routes";
 import insightRoutes from "./routes/insight-routes";
 import holidayRoutes from "./routes/holiday-routes";
+import importRoutes from "./routes/import-routes";
 
 // 환경변수 로드
 dotenv.config();
@@ -47,6 +48,7 @@ app.use('/api/schedules', scheduleRoutes);
 app.use('/api/expenses', expenseRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/holidays', holidayRoutes);
+app.use('/api/import', importRoutes);
 
 
 // 서버 시작 함수

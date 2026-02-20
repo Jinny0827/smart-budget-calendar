@@ -94,25 +94,37 @@ class GroqService {
         const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-        const [thisMonthExpenses, lastMonthExpenses, upcomingSchedules] = await Promise.all([
+        const [thisMonthAll, lastMonthAll, upcomingSchedules] = await Promise.all([
             Expense.find({ userId: userObjectId, date: { $gte: thisMonthStart } }).lean(),
             Expense.find({ userId: userObjectId, date: { $gte: lastMonthStart, $lte: lastMonthEnd } }).lean(),
             Schedule.find({ userId: userObjectId, date: { $gte: now, $lte: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) } }).lean()
         ]);
 
-        const getSummary = (expenses: any[]) => {
+        const getSummary = (records: any[], type: 'income' | 'expense') => {
+            const filtered = records.filter(e => e.type === type);
             const map: Record<string, number> = {};
-            expenses.forEach(e => map[e.category] = (map[e.category] || 0) + e.amount);
-            return { total: expenses.reduce((s, e) => s + e.amount, 0), map };
+            filtered.forEach(e => map[e.category] = (map[e.category] || 0) + e.amount);
+            return { total: filtered.reduce((s, e) => s + e.amount, 0), map };
         };
 
-        const thisMonth = getSummary(thisMonthExpenses);
-        const lastMonth = getSummary(lastMonthExpenses);
+        const thisMonthExpense = getSummary(thisMonthAll, 'expense');
+        const thisMonthIncome = getSummary(thisMonthAll, 'income');
+        const lastMonthExpense = getSummary(lastMonthAll, 'expense');
+        const lastMonthIncome = getSummary(lastMonthAll, 'income');
+
+        const thisMonthNet = thisMonthIncome.total - thisMonthExpense.total;
+        const lastMonthNet = lastMonthIncome.total - lastMonthExpense.total;
 
         return `당신은 개인 재정 관리 전문가입니다. 아래 데이터를 분석하여 JSON 배열로만 응답하세요.
-        
-        ## 이번 달 지출: ${thisMonth.total.toLocaleString()}원 ${JSON.stringify(thisMonth.map)}
-        ## 지난 달 지출: ${lastMonth.total.toLocaleString()}원 ${JSON.stringify(lastMonth.map)}
+
+        ## 이번 달 수입: ${thisMonthIncome.total.toLocaleString()}원 ${JSON.stringify(thisMonthIncome.map)}
+        ## 이번 달 지출: ${thisMonthExpense.total.toLocaleString()}원 ${JSON.stringify(thisMonthExpense.map)}
+        ## 이번 달 순수입(수입-지출): ${thisMonthNet.toLocaleString()}원
+
+        ## 지난 달 수입: ${lastMonthIncome.total.toLocaleString()}원 ${JSON.stringify(lastMonthIncome.map)}
+        ## 지난 달 지출: ${lastMonthExpense.total.toLocaleString()}원 ${JSON.stringify(lastMonthExpense.map)}
+        ## 지난 달 순수입(수입-지출): ${lastMonthNet.toLocaleString()}원
+
         ## 예정 일정: ${upcomingSchedules.map(s => `${s.title}(${s.category}):${new Date(s.date).toLocaleDateString()}`).join(', ')}
 
         ## 응답 형식 (반드시 이 필드들을 포함한 JSON 배열이어야 함):
@@ -124,9 +136,12 @@ class GroqService {
             "data": { "category": "카테고리명", "amount": 0, "changeRate": 0 }
           }
         ]
-        
-         ## 분석 기준:
-        - 전월 대비 30% 이상 증가 시 경고 (anomaly_alert)
+
+        ## 분석 기준:
+        - 지출이 수입을 초과하면 경고 (anomaly_alert, high priority)
+        - 전월 대비 지출 30% 이상 증가 시 경고 (anomaly_alert)
+        - 순수입이 플러스면 저축 칭찬 및 조언 (pattern_insight)
+        - 수입 대비 지출 비율(소비율)이 80% 초과 시 절약 권고 (budget_suggestion)
         - 예정 일정 대비 예산 조언 (schedule_recommendation)
         - 절약 중인 카테고리 칭찬 (pattern_insight)
         - 데이터가 적어도 반드시 최소 3개 이상 생성할 것
