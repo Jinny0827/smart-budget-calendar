@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Smart Budget Calendar Backend (Groq Version)
+
+Globals:
+  Function:
+    Timeout: 30
+    MemorySize: 512
+    Runtime: nodejs20.x
+    Environment:
+      Variables:
+        NODE_ENV: production
+        MONGODB_URI: !Ref MongoDBUri
+        JWT_SECRET: !Ref JwtSecret
+        GROQ_API_KEY: !Ref GroqApiKey
+
+Parameters:
+  MongoDBUri:
+    Type: String
+  JwtSecret:
+    Type: String
+  GroqApiKey:
+    Type: String
+
+Resources:
+  SmartBudgetFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ./
+      Handler: dist/lambda.handler
+      Events:
+        ProxyApi:
+          Type: Api
+          Properties:
+            Path: /{proxy+}
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: "API Gateway endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"

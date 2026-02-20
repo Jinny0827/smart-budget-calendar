@@ -9,15 +9,10 @@ import insightRoutes from "./routes/insight-routes";
 import holidayRoutes from "./routes/holiday-routes";
 import importRoutes from "./routes/import-routes";
 
-// 환경변수 로드
 dotenv.config();
 
-// Express 앱 생성
 const app: Application = express();
-const PORT = process.env.PORT || 5000;
 
-
-// 미들웨어 설정
 app.use(cors({
     origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
     credentials: true
@@ -25,24 +20,21 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true}));
 
+// DB 연결 (Lambda는 핸들러 밖에서 연결하는 것이 성능상 유리합니다)
+connectDB();
+
 app.get('/', (_req: Request, res: Response)=> {
     res.json({
         success: true,
         message: '스마트 가계부 API 서버 실행중입니다.',
-        data: {
-            version: '1.0.0',
-            timestamp: new Date().toISOString()
-        }
+        data: { version: '1.0.0', timestamp: new Date().toISOString() }
     })
 });
 
-// 헬스체크 라우트
 app.get('/health', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'OK' });
 });
 
-
-// API 라우트 연결
 app.use('/api/auth', authRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/expenses', expenseRoutes);
@@ -50,21 +42,13 @@ app.use('/api/insights', insightRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/import', importRoutes);
 
-
-// 서버 시작 함수
-const startServer = async () => {
-    try {
-        await connectDB();
-
-        app.listen(PORT, () => {
-            console.log(`🚀 서버가 포트 ${PORT}에서 실행 중입니다`);
-            console.log(`📍 환경: ${process.env.NODE_ENV || 'development'}`);
-        })
-    } catch (e) {
-        console.error('서버 시작 실패:', e);
-        process.exit(1);
-    }
+// [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.
+if (process.env.NODE_ENV !== 'production') {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`🚀 로컬 서버가 포트 ${PORT}에서 실행 중입니다`);
+    });
 }
 
-// 서버 시작
-startServer();
+// Lambda 핸들러에서 사용할 수 있도록 export 추가
+export default app;

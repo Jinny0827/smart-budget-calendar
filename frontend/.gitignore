@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# AWS SAM configuration (Contains sensitive parameters)
+backend/samconfig.toml
+
+# Environment variables (Sensitive keys and DB URI)
+.env
+.env.production
+.env.local
