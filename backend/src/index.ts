@@ -13,10 +13,25 @@ dotenv.config();
 
 const app: Application = express();
 
+// 허용할 주소 목록 정의
+const allowedOrigins = [
+    'http://localhost:5173', // 로컬 Vite 개발 서버
+    process.env.CORS_ORIGIN,  // 환경 변수로 들어올 주소 (S3 등)
+].filter(Boolean) as string[]; // null이나 undefined 제거
+
 app.use(cors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-    credentials: true
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true}));
 
@@ -41,6 +56,7 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/import', importRoutes);
+
 
 // [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.
 if (process.env.NODE_ENV !== 'production') {
