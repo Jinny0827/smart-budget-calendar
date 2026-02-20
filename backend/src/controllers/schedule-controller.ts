@@ -42,7 +42,7 @@ export const getSchedules = async (req: Request, res: Response): Promise<void> =
 export const createSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const { title, date, category, isRecurring, recurringPattern } = req.body;
+        const { title, date, endDate, category, isRecurring, recurringPattern } = req.body;
 
         // 필수 필드 검증
         if (!title || !date || !category) {
@@ -57,6 +57,7 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
             userId,
             title,
             date,
+            endDate: endDate || undefined,
             category,
             isRecurring: isRecurring || false,
             recurringPattern

@@ -19,6 +19,7 @@ export const getSchedules = async (params?: {
 export const createSchedule = async (data: {
     title: string;
     date: string;
+    endDate?: string;
     category: string;
     isRecurring?: boolean;
     recurringPattern?: {

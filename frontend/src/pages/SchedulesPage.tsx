@@ -5,7 +5,6 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import type { View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { logout, getCurrentUser } from '../services/auth-service';
 import {
     getSchedules,
@@ -14,8 +13,8 @@ import {
     deleteSchedule,
 } from '../services/schedule-service';
 import { getExpenses } from '../services/expense-service';
+import { getHolidays } from '../services/holiday-service';
 import type { Schedule, Expense } from '../types';
-import Holidays from 'date-holidays';
 
 // ─── date-fns 로컬라이저 설정 ────────────────────────────────
 const locales = { ko };
@@ -26,22 +25,6 @@ const localizer = dateFnsLocalizer({
     getDay,
     locales,
 });
-
-// ─── 공휴일 초기화 (컴포넌트 밖에서 한 번만) ─────────────────
-const hd = new Holidays('KR');
-const currentYear = new Date().getFullYear();
-const holidayList = [
-    ...hd.getHolidays(currentYear - 1),
-    ...hd.getHolidays(currentYear),
-    ...hd.getHolidays(currentYear + 1),
-].filter((h) => h.type === 'public');
-
-const holidaySet = new Set(
-    holidayList.map((h) => format(new Date(h.date), 'yyyy-MM-dd'))
-);
-const holidayNameMap = new Map(
-    holidayList.map((h) => [format(new Date(h.date), 'yyyy-MM-dd'), h.name])
-);
 
 // ─── 상수 ────────────────────────────────────────────────────
 const CATEGORIES = ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'];
@@ -79,6 +62,10 @@ function SchedulesPage() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
+    // ─── 공휴일 state ────────────────────────────────────────
+    const [holidaySet, setHolidaySet] = useState<Set<string>>(new Set());
+    const [holidayNameMap, setHolidayNameMap] = useState<Map<string, string>>(new Map());
+
     const [currentView, setCurrentView] = useState<View>('month');
     const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -91,12 +78,23 @@ function SchedulesPage() {
     const fetchAll = async () => {
         try {
             setLoading(true);
-            const [scheduleData, expenseData] = await Promise.all([
+            const [scheduleData, expenseData, holidayData] = await Promise.all([
                 getSchedules(),
                 getExpenses({}),
+                getHolidays(),
             ]);
             setSchedules(scheduleData);
             setExpenses(expenseData);
+
+            // 공휴일 set/map 구성
+            const newSet = new Set<string>();
+            const newMap = new Map<string, string>();
+            holidayData.forEach(({ date, name }) => {
+                newSet.add(date);
+                newMap.set(date, name);
+            });
+            setHolidaySet(newSet);
+            setHolidayNameMap(newMap);
         } catch {
             setError('데이터를 불러오는데 실패했습니다');
         } finally {
@@ -109,7 +107,6 @@ function SchedulesPage() {
     }, []);
 
     // ─── 모달 열기 (날짜 지정) ───────────────────────────────
-    // dateCellWrapper와 onSelectSlot 둘 다 이 함수를 사용
     const openCreateModal = useCallback((date: Date) => {
         const dateStr = format(date, 'yyyy-MM-dd');
         setEditingId(null);
@@ -118,10 +115,37 @@ function SchedulesPage() {
     }, []);
 
     // ─── 이벤트 변환 ─────────────────────────────────────────
-    const scheduleEvents: CalendarEvent[] = schedules.map((s) => {
+    const scheduleEvents: CalendarEvent[] = schedules.flatMap((s) => {
         const start = new Date(s.date);
         const end = s.endDate ? new Date(s.endDate) : start;
-        return { id: s._id, title: s.title, start, end, type: 'schedule', resource: s };
+        const base = { id: s._id, title: s.title, type: 'schedule' as const, resource: s };
+
+        if (!s.isRecurring || !s.recurringPattern) {
+            return [{ ...base, start, end }];
+        }
+
+        // 반복 일정이면 12개월치 생성
+        const events = [];
+        const { frequency, interval } = s.recurringPattern;
+
+        for (let i = 0; i < 12; i++) {
+            const s2 = new Date(start);
+            const e2 = new Date(end);
+
+            if (frequency === 'monthly') {
+                s2.setMonth(s2.getMonth() + i * interval);
+                e2.setMonth(e2.getMonth() + i * interval);
+            } else if (frequency === 'weekly') {
+                s2.setDate(s2.getDate() + i * 7 * interval);
+                e2.setDate(e2.getDate() + i * 7 * interval);
+            } else if (frequency === 'daily') {
+                s2.setDate(s2.getDate() + i * interval);
+                e2.setDate(e2.getDate() + i * interval);
+            }
+
+            events.push({ ...base, id: `${s._id}-${i}`, start: s2, end: e2 });
+        }
+        return events;
     });
 
     const expenseEvents: CalendarEvent[] = expenses.map((e) => {
@@ -167,19 +191,7 @@ function SchedulesPage() {
         };
     }, []);
 
-    // ─── 날짜 셀 스타일 (공휴일/일요일 빨강) ────────────────
-    const dayPropGetter = useCallback((date: Date) => {
-        const dateStr = format(date, 'yyyy-MM-dd');
-        const isSunday = date.getDay() === 0;
-        const isHoliday = holidaySet.has(dateStr);
-        if (isHoliday || isSunday) {
-            return { style: { backgroundColor: '#fff5f5' } };
-        }
-        return {};
-    }, []);
-
     // ─── 빈 날짜 드래그 범위 선택 → 생성 모달 ───────────────
-    // 현재 달 날짜에만 동작 (다른 달은 dateCellWrapper가 처리)
     const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
         const startStr = format(start, 'yyyy-MM-dd');
         const endStr = format(end, 'yyyy-MM-dd');
@@ -314,8 +326,12 @@ function SchedulesPage() {
                             지출
                         </span>
                         <span className="flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fff5f5', border: '1px solid #fca5a5' }} />
-                            공휴일
+                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fee2e2', border: '1px solid #ef4444' }} />
+                            공휴일/일요일
+                        </span>
+                        <span className="flex items-center gap-1">
+                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#eff6ff', border: '1px solid #3b82f6' }} />
+                            토요일
                         </span>
                     </div>
 
@@ -336,24 +352,33 @@ function SchedulesPage() {
                             onSelectSlot={handleSelectSlot}
                             onSelectEvent={handleSelectEvent}
                             eventPropGetter={eventStyleGetter}
-                            dayPropGetter={dayPropGetter}
                             messages={messages}
                             culture="ko"
                             popup
                             popupOffset={10}
                             components={{
-                                // ─── 날짜 셀 전체 클릭 처리 ─────────────────
-                                // 다른 달 날짜 클릭 시에도 생성 모달이 열리도록
-                                dateCellWrapper: ({ children, value }: { children: React.ReactNode; value: Date }) => (
-                                    <div
-                                        style={{ flex: 1, cursor: 'pointer' }}
-                                        onClick={() => openCreateModal(value)}
-                                    >
-                                        {children}
-                                    </div>
-                                ),
+                                // ─── 날짜 셀 배경색 + 클릭 처리 ─────────────
+                                dateCellWrapper: ({ children, value }: { children: React.ReactNode; value: Date }) => {
+                                    const dateStr = format(value, 'yyyy-MM-dd');
+                                    const isSunday = value.getDay() === 0;
+                                    const isSaturday = value.getDay() === 6;
+                                    const isHoliday = holidaySet.has(dateStr);
+
+                                    let bg = 'transparent';
+                                    if (isHoliday || isSunday) bg = '#fee2e2';
+                                    else if (isSaturday) bg = '#eff6ff';
+
+                                    return (
+                                        <div
+                                            style={{ flex: 1, cursor: 'pointer', backgroundColor: bg }}
+                                            onClick={() => openCreateModal(value)}
+                                        >
+                                            {children}
+                                        </div>
+                                    );
+                                },
                                 month: {
-                                    // ─── 날짜 숫자 커스텀 ────────────────────
+                                    // ─── 날짜 숫자 + 공휴일명 표시 ──────────
                                     dateHeader: ({ date, label }: { date: Date; label: string }) => {
                                         const dateStr = format(date, 'yyyy-MM-dd');
                                         const isSunday = date.getDay() === 0;
