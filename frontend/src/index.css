@@ -15,3 +15,13 @@
 .rbc-selected-cell {
     background-color: #dbeafe;
 }
+
+/* ─── 주말/공휴일 배경 ─── */
+@layer utilities {
+    .rbc-month-view .rbc-day-bg.day-holiday {
+        background-color: #fee2e2 !important;
+    }
+    .rbc-month-view .rbc-day-bg.day-saturday {
+        background-color: #eff6ff !important;
+    }
+}
