@@ -89,7 +89,9 @@ function DashboardPage() {
 
     const handleLogout = () => { logout(); navigate('/login'); };
 
-    const totalExpense = stats?.total?.total || 0;
+    const totalIncome = stats?.incomeTotal?.total || 0;
+    const totalExpense = stats?.expenseTotal?.total || 0;
+    const balance = totalIncome - totalExpense;
     const upcomingSchedules = schedules.filter((s) => new Date(s.date) >= new Date());
     const recentExpenses = expenses.slice(0, 5);
 
@@ -99,10 +101,11 @@ function DashboardPage() {
         value: cat.total,
     }));
 
-    // 바차트: 오늘까지 일별 지출
+    // 바차트: 오늘까지 일별 지출 (수입 제외)
     const today = now.getDate();
     const dailyMap = new Map<number, number>();
     for (const expense of expenses) {
+        if (expense.type === 'income') continue;
         const day = new Date(expense.date).getDate();
         dailyMap.set(day, (dailyMap.get(day) || 0) + expense.amount);
     }
@@ -144,19 +147,21 @@ function DashboardPage() {
                         {/* 요약 카드 */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                             <div className="bg-white p-6 rounded-lg shadow">
+                                <h2 className="text-sm text-gray-500 mb-1">이번 달 수입</h2>
+                                <p className="text-3xl font-bold text-green-600">+{totalIncome.toLocaleString()}원</p>
+                                <p className="text-xs text-gray-400 mt-1">{stats?.incomeTotal?.count || 0}건</p>
+                            </div>
+                            <div className="bg-white p-6 rounded-lg shadow">
                                 <h2 className="text-sm text-gray-500 mb-1">이번 달 지출</h2>
-                                <p className="text-3xl font-bold text-blue-600">{totalExpense.toLocaleString()}원</p>
-                                <p className="text-xs text-gray-400 mt-1">{now.getMonth() + 1}월 기준</p>
+                                <p className="text-3xl font-bold text-red-500">-{totalExpense.toLocaleString()}원</p>
+                                <p className="text-xs text-gray-400 mt-1">{stats?.expenseTotal?.count || 0}건</p>
                             </div>
                             <div className="bg-white p-6 rounded-lg shadow">
-                                <h2 className="text-sm text-gray-500 mb-1">예정 일정</h2>
-                                <p className="text-3xl font-bold text-green-600">{upcomingSchedules.length}개</p>
-                                <p className="text-xs text-gray-400 mt-1">오늘 이후 일정</p>
-                            </div>
-                            <div className="bg-white p-6 rounded-lg shadow">
-                                <h2 className="text-sm text-gray-500 mb-1">이번 달 지출 건수</h2>
-                                <p className="text-3xl font-bold text-purple-600">{stats?.total?.count || 0}건</p>
-                                <p className="text-xs text-gray-400 mt-1">거래 횟수</p>
+                                <h2 className="text-sm text-gray-500 mb-1">이번 달 잔액</h2>
+                                <p className={`text-3xl font-bold ${balance >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                    {balance >= 0 ? '+' : ''}{balance.toLocaleString()}원
+                                </p>
+                                <p className="text-xs text-gray-400 mt-1">수입 - 지출</p>
                             </div>
                         </div>
 
@@ -224,7 +229,9 @@ function DashboardPage() {
                                                     <p className="font-medium text-gray-800">{expense.description}</p>
                                                     <p className="text-xs text-gray-400">{expense.category} · {new Date(expense.date).toLocaleDateString('ko-KR')}</p>
                                                 </div>
-                                                <span className="font-semibold text-red-500">-{expense.amount.toLocaleString()}원</span>
+                                                <span className={`font-semibold ${expense.type === 'income' ? 'text-green-500' : 'text-red-500'}`}>
+                                                    {expense.type === 'income' ? '+' : '-'}{expense.amount.toLocaleString()}원
+                                                </span>
                                             </li>
                                         ))}
                                     </ul>

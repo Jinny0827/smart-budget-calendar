@@ -8,6 +8,7 @@ export const getExpenses = async (params?: {
     startDate?: string;
     endDate?: string;
     scheduleId?: string;
+    type?: 'income' | 'expense';
 }): Promise<Expense[]> => {
     const response = await api.get<ApiResponse<{ expenses: Expense[] }>>('/expenses', {
         params,
@@ -22,6 +23,7 @@ export const createExpense = async (data: {
     description: string;
     date?: string;
     scheduleId?: string;
+    type?: 'income' | 'expense';
 }): Promise<Expense> => {
     const response = await api.post<ApiResponse<{ expense: Expense }>>('/expenses', data);
     return response.data.data!.expense;

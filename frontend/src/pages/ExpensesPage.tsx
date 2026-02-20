@@ -9,9 +9,11 @@ import {
     deleteExpense,
 } from "../services/expense-service.ts";
 import { getSchedules } from "../services/schedule-service.ts";
+import { importCardHistory } from "../services/import-service.ts";
 
-// 카테고리 목록
-const CATEGORIES = ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'];
+// 카테고리 목록 (type별 분리)
+const EXPENSE_CATEGORIES = ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'];
+const INCOME_CATEGORIES = ['급여', '부업', '사업', '투자', '용돈', '환급', '기타'];
 
 // 빈 폼 초기값
 const emptyForm = {
@@ -19,7 +21,9 @@ const emptyForm = {
     category: '식비',
     description: '',
     date: new Date().toISOString().split('T')[0],
+    time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
     scheduleId: '',
+    type: 'expense' as 'income' | 'expense',
 };
 
 function ExpensesPage() {
@@ -39,6 +43,13 @@ function ExpensesPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [submitting, setSubmitting] = useState(false);
+
+    // 카드 가져오기 모달 상태
+    const [showImportModal, setShowImportModal] = useState(false);
+    const [importFile, setImportFile] = useState<File | null>(null);
+    const [importing, setImporting] = useState(false);
+    const [importResult, setImportResult] = useState<string>('');
+    const [selectedCard, setSelectedCard] = useState<string>('삼성카드');
 
     // 데이터 로드
     const fetchExpenses = async() => {
@@ -76,12 +87,16 @@ function ExpensesPage() {
     // 수정 버튼
     const handleOpenEdit = (expense: Expense) => {
         setEditingId(expense._id);
+        const d = new Date(expense.date);
+        const timeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
         setForm({
             amount: String(expense.amount),
             category: expense.category,
             description: expense.description,
             date: expense.date.split('T')[0],
+            time: timeStr,
             scheduleId: expense.scheduleId || '',
+            type: expense.type || 'expense',
         });
         setShowModal(true);
     };
@@ -98,8 +113,9 @@ function ExpensesPage() {
                 amount: Number(form.amount),
                 category: form.category,
                 description: form.description,
-                date: form.date,
+                date: form.time ? `${form.date}T${form.time}` : form.date,
                 scheduleId: form.scheduleId || undefined,
+                type: form.type,
             };
             if (editingId) {
                 await updateExpense(editingId, payload);
@@ -126,8 +142,34 @@ function ExpensesPage() {
         }
     };
 
-    // 총 지출 합계
-    const total = expenses.reduce((sum, e) => sum + e.amount, 0);
+    // 카드 내역 가져오기
+    const handleImport = async () => {
+        if (!importFile) { alert('파일을 선택해주세요'); return; }
+        if (selectedCard !== '삼성카드') {
+            alert(`${selectedCard}는 현재 지원 예정입니다.\n현재는 삼성카드만 지원합니다.`);
+            return;
+        }
+        try {
+            setImporting(true);
+            setImportResult('');
+            const { count, skipped, cardName } = await importCardHistory(importFile);
+            const msg = skipped > 0
+                ? `✅ ${cardName} ${count}건 추가 (중복 ${skipped}건 스킵)`
+                : `✅ ${cardName} ${count}건 가져오기 완료!`;
+            setImportResult(msg);
+            setImportFile(null);
+            await fetchExpenses();
+        } catch (err: any) {
+            setImportResult(`❌ ${err?.response?.data?.message || '가져오기 실패'}`);
+        } finally {
+            setImporting(false);
+        }
+    };
+
+    // 수입/지출/잔액 합계
+    const totalIncome = expenses.filter((e) => e.type === 'income').reduce((sum, e) => sum + e.amount, 0);
+    const totalExpense = expenses.filter((e) => e.type !== 'income').reduce((sum, e) => sum + e.amount, 0);
+    const balance = totalIncome - totalExpense;
 
 
     return (
@@ -179,25 +221,44 @@ function ExpensesPage() {
                                 className="px-3 py-2 border rounded text-sm"
                             >
                                 <option value="">전체 카테고리</option>
-                                {CATEGORIES.map((cat) => (
-                                    <option key={cat} value={cat}>{cat}</option>
-                                ))}
+                                <optgroup label="지출">
+                                    {EXPENSE_CATEGORIES.map((cat) => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </optgroup>
+                                <optgroup label="수입">
+                                    {INCOME_CATEGORIES.map((cat) => (
+                                        <option key={cat} value={cat}>{cat}</option>
+                                    ))}
+                                </optgroup>
                             </select>
 
+                            <button
+                                onClick={() => { setImportResult(''); setShowImportModal(true); }}
+                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                            >
+                                📥 카드 가져오기
+                            </button>
                             <button
                                 onClick={handleOpenAdd}
                                 className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
                             >
-                                + 지출 추가
+                                + 내역 추가
                             </button>
                         </div>
                     </div>
 
                     {/* 합계 */}
                     {expenses.length > 0 && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg flex justify-between">
+                        <div className="mb-4 p-3 bg-blue-50 rounded-lg flex flex-wrap justify-between items-center gap-2">
                             <span className="text-blue-700 font-medium">총 {expenses.length}건</span>
-                            <span className="text-blue-700 font-bold">{total.toLocaleString()}원</span>
+                            <div className="flex gap-4">
+                                <span className="text-green-600 font-semibold">수입 +{totalIncome.toLocaleString()}원</span>
+                                <span className="text-red-500 font-semibold">지출 -{totalExpense.toLocaleString()}원</span>
+                                <span className={`font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                    잔액 {balance >= 0 ? '+' : ''}{balance.toLocaleString()}원
+                                </span>
+                            </div>
                         </div>
                     )}
 
@@ -214,6 +275,7 @@ function ExpensesPage() {
                                 <tr className="border-b bg-gray-50">
                                     <th className="py-3 px-4 text-sm text-gray-600">날짜</th>
                                     <th className="py-3 px-4 text-sm text-gray-600">설명</th>
+                                    <th className="py-3 px-4 text-sm text-gray-600">유형</th>
                                     <th className="py-3 px-4 text-sm text-gray-600">카테고리</th>
                                     <th className="py-3 px-4 text-sm text-gray-600">연결 일정</th>
                                     <th className="py-3 px-4 text-sm text-gray-600 text-right">금액</th>
@@ -228,7 +290,16 @@ function ExpensesPage() {
                                         </td>
                                         <td className="py-3 px-4 font-medium">{expense.description}</td>
                                         <td className="py-3 px-4">
-                                                <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                                expense.type === 'income'
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-red-100 text-red-700'
+                                            }`}>
+                                                {expense.type === 'income' ? '수입' : '지출'}
+                                            </span>
+                                        </td>
+                                        <td className="py-3 px-4">
+                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
                                                     {expense.category}
                                                 </span>
                                         </td>
@@ -237,8 +308,10 @@ function ExpensesPage() {
                                                 ? schedules.find((s) => s._id === expense.scheduleId)?.title || '-'
                                                 : '-'}
                                         </td>
-                                        <td className="py-3 px-4 text-right font-semibold text-red-500">
-                                            -{expense.amount.toLocaleString()}원
+                                        <td className={`py-3 px-4 text-right font-semibold ${
+                                            expense.type === 'income' ? 'text-green-500' : 'text-red-500'
+                                        }`}>
+                                            {expense.type === 'income' ? '+' : '-'}{expense.amount.toLocaleString()}원
                                         </td>
                                         <td className="py-3 px-4">
                                             <button
@@ -268,10 +341,41 @@ function ExpensesPage() {
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
                     <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
                         <h3 className="text-xl font-bold mb-4">
-                            {editingId ? '지출 수정' : '지출 추가'}
+                            {editingId
+                                ? (form.type === 'income' ? '수입 수정' : '지출 수정')
+                                : (form.type === 'income' ? '수입 추가' : '지출 추가')}
                         </h3>
 
                         <div className="space-y-4">
+                            {/* 수입/지출 유형 선택 */}
+                            <div>
+                                <label className="block text-sm text-gray-700 mb-1">유형 *</label>
+                                <div className="flex rounded overflow-hidden border">
+                                    <button
+                                        type="button"
+                                        onClick={() => setForm({ ...form, type: 'expense', category: EXPENSE_CATEGORIES[0] })}
+                                        className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                                            form.type === 'expense'
+                                                ? 'bg-red-500 text-white'
+                                                : 'bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        지출
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => setForm({ ...form, type: 'income', category: INCOME_CATEGORIES[0] })}
+                                        className={`flex-1 py-2 text-sm font-medium transition-colors ${
+                                            form.type === 'income'
+                                                ? 'bg-green-500 text-white'
+                                                : 'bg-white text-gray-600 hover:bg-gray-50'
+                                        }`}
+                                    >
+                                        수입
+                                    </button>
+                                </div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm text-gray-700 mb-1">금액 *</label>
                                 <input
@@ -302,20 +406,31 @@ function ExpensesPage() {
                                     onChange={(e) => setForm({ ...form, category: e.target.value })}
                                     className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 >
-                                    {CATEGORIES.map((cat) => (
+                                    {(form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
                                         <option key={cat} value={cat}>{cat}</option>
                                     ))}
                                 </select>
                             </div>
 
-                            <div>
-                                <label className="block text-sm text-gray-700 mb-1">날짜</label>
-                                <input
-                                    type="date"
-                                    value={form.date}
-                                    onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                />
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm text-gray-700 mb-1">날짜</label>
+                                    <input
+                                        type="date"
+                                        value={form.date}
+                                        onChange={(e) => setForm({ ...form, date: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm text-gray-700 mb-1">시간</label>
+                                    <input
+                                        type="time"
+                                        value={form.time}
+                                        onChange={(e) => setForm({ ...form, time: e.target.value })}
+                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -348,6 +463,73 @@ function ExpensesPage() {
                                 className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
                             >
                                 {submitting ? '저장 중...' : '저장'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 카드 내역 가져오기 모달 */}
+            {showImportModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+                    <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                        <h3 className="text-xl font-bold mb-4">카드 내역 가져오기</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm text-gray-700 mb-1">카드사 선택 *</label>
+                                <select
+                                    value={selectedCard}
+                                    onChange={(e) => { setSelectedCard(e.target.value); setImportResult(''); }}
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                >
+                                    <option value="삼성카드">삼성카드 ✅ 지원</option>
+                                    <option value="신한카드">신한카드 (지원 예정)</option>
+                                    <option value="KB국민카드">KB국민카드 (지원 예정)</option>
+                                    <option value="현대카드">현대카드 (지원 예정)</option>
+                                    <option value="롯데카드">롯데카드 (지원 예정)</option>
+                                    <option value="우리카드">우리카드 (지원 예정)</option>
+                                    <option value="하나카드">하나카드 (지원 예정)</option>
+                                    <option value="BC카드">BC카드 (지원 예정)</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm text-gray-700 mb-1">이용내역 파일 (.xlsx)</label>
+                                <input
+                                    type="file"
+                                    accept=".xlsx,.xls"
+                                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                                    className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                />
+                            </div>
+
+                            {importFile && (
+                                <p className="text-sm text-gray-600">
+                                    선택된 파일: <span className="font-medium">{importFile.name}</span>
+                                </p>
+                            )}
+
+                            {importResult && (
+                                <p className={`text-sm font-medium ${importResult.startsWith('✅') ? 'text-green-600' : 'text-red-600'}`}>
+                                    {importResult}
+                                </p>
+                            )}
+                        </div>
+
+                        <div className="flex gap-3 mt-6">
+                            <button
+                                onClick={() => { setShowImportModal(false); setImportFile(null); setImportResult(''); setSelectedCard('삼성카드'); }}
+                                className="flex-1 px-4 py-2 border rounded hover:bg-gray-50"
+                            >
+                                닫기
+                            </button>
+                            <button
+                                onClick={handleImport}
+                                disabled={importing || !importFile}
+                                className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 disabled:bg-gray-400"
+                            >
+                                {importing ? '가져오는 중...' : '가져오기'}
                             </button>
                         </div>
                     </div>

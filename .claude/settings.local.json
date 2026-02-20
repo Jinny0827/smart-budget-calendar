@@ -1,0 +1,15 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:thisthatbase.com)",
+      "WebFetch(domain:oksemusa.com)",
+      "WebFetch(domain:bigmindtax.com)",
+      "Bash(pip install:*)",
+      "Bash(python:*)",
+      "Bash(npm install:*)",
+      "Bash(cmd.exe /c \"cd C:\\\\workspace\\\\smart-budget-calendar\\\\backend && npm install xlsx multer @types/multer --save 2>&1\")",
+      "Bash(cmd.exe /c \"cd /d C:\\\\workspace\\\\smart-budget-calendar\\\\backend && npm install xlsx multer @types/multer --save\")",
+      "Bash(powershell -Command:*)"
+    ]
+  }
+}

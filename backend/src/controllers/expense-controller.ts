@@ -9,7 +9,7 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
         const userId = (req as any).userId;
 
         // 쿼리 파라미터로 필터링
-        const { category, startDate, endDate, scheduleId } = req.query;
+        const { category, startDate, endDate, scheduleId, type } = req.query;
 
         let query: any = { userId };
 
@@ -19,6 +19,10 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
 
         if (scheduleId) {
             query.scheduleId = scheduleId;
+        }
+
+        if (type) {
+            query.type = type;
         }
 
         if (startDate || endDate) {
@@ -48,7 +52,7 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
 export const createExpense = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const { amount, category, description, date, scheduleId } = req.body;
+        const { amount, category, description, date, scheduleId, type } = req.body;
 
         // 필수 필드 검증
         if (!amount || !category || !description) {
@@ -65,7 +69,8 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
             category,
             description,
             date: date || new Date(),
-            scheduleId
+            scheduleId,
+            type: type || 'expense'
         });
 
         // 일정에 연동된 경우, 일정의 expenses 배열에 추가
@@ -210,9 +215,10 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
             matchStage.date = dateFilter;
         }
 
-        // 카테고리별 합계
+        // 카테고리별 합계 - 지출(expense)만 파이차트용
+        const expenseMatchStage = { ...matchStage, type: 'expense' };
         const categoryStats = await Expense.aggregate([
-            { $match: matchStage },
+            { $match: expenseMatchStage },
             {
                 $group: {
                     _id: '$category',
@@ -223,7 +229,25 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
             { $sort: { total: -1 } }
         ]);
 
-        // 전체 합계
+        // 수입/지출 분리 집계
+        const typeStats = await Expense.aggregate([
+            { $match: matchStage },
+            {
+                $group: {
+                    _id: '$type',
+                    total: { $sum: '$amount' },
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const incomeData = typeStats.find((t) => t._id === 'income');
+        const expenseData = typeStats.find((t) => t._id === 'expense');
+
+        const incomeTotal = { total: incomeData?.total || 0, count: incomeData?.count || 0 };
+        const expenseTotal = { total: expenseData?.total || 0, count: expenseData?.count || 0 };
+
+        // 전체 합계 (하위 호환)
         const totalResult = await Expense.aggregate([
             { $match: matchStage },
             {
@@ -239,7 +263,9 @@ export const getExpenseStats = async (req: Request, res: Response): Promise<void
             success: true,
             data: {
                 categoryStats,
-                total: totalResult[0] || { total: 0, count: 0 }
+                total: totalResult[0] || { total: 0, count: 0 },
+                incomeTotal,
+                expenseTotal
             }
         });
     } catch (error) {

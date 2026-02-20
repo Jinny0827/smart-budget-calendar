@@ -36,7 +36,7 @@ export interface Schedule {
     updatedAt: string;
 }
 
-// 지출
+// 지출/수입
 export interface Expense {
     _id: string;
     userId: string;
@@ -45,6 +45,7 @@ export interface Expense {
     description: string;
     date: string;
     scheduleId?: string;
+    type: 'income' | 'expense';
     createdAt: string;
     updatedAt: string;
 }
@@ -57,6 +58,14 @@ export interface ExpenseStats {
         count: number;
     }[];
     total: {
+        total: number;
+        count: number;
+    };
+    incomeTotal: {
+        total: number;
+        count: number;
+    };
+    expenseTotal: {
         total: number;
         count: number;
     };
