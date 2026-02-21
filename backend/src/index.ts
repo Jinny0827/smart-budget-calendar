@@ -16,6 +16,8 @@ const app: Application = express();
 // 허용할 주소 목록 정의
 const allowedOrigins = [
     'http://localhost:5173', // 로컬 Vite 개발 서버
+    'http://127.0.0.1:5173',
+    'https://budget.bowling-manager.com', // 프로덕션 프론트엔드
     process.env.CORS_ORIGIN,  // 환경 변수로 들어올 주소 (S3 등)
 ].filter(Boolean) as string[]; // null이나 undefined 제거
 
