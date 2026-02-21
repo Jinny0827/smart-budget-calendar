@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_KEY = decodeURIComponent(process.env.HOLIDAY_API_KEY!);
+const API_KEY = decodeURIComponent(process.env.HOLIDAY_SERVICE_KEY!);
 const BASE_URL = 'http://apis.data.go.kr/B090041/openapi/service/SpcdeInfoService';
 
 // ─── 연도별 공휴일 조회 (월 없이 연도 전체) ──────────────────
