@@ -10,12 +10,29 @@ export interface User {
     id: string;
     email: string;
     name: string;
+    nickname?: string;
+    role: 'user' | 'admin';
+    status: 'pending' | 'approved' | 'rejected';
+    otpEnabled: boolean;
 }
 
-// 인증 응답
-export interface AuthResponse {
+// 로그인 응답 — OTP 미사용 시 token+user, OTP 사용 시 otpRequired+tempToken
+export interface LoginResponse {
+    token?: string;
+    user?: User;
+    otpRequired?: boolean;
+    tempToken?: string;
+}
+
+// OTP 검증 후 최종 응답
+export interface OtpVerifyResponse {
     token: string;
     user: User;
+}
+
+// 회원가입 응답 — 토큰 없음, 승인 대기 메시지만 반환
+export interface RegisterResponse {
+    message: string;
 }
 
 // 일정
@@ -96,4 +113,37 @@ export interface SchedulePattern {
     nextSuggestion: string;
     confidence: number;
     occurrenceCount: number;
+}
+
+// 그룹 설정
+export interface GroupSettings {
+    shareSchedules: boolean;
+    shareExpenses: boolean;
+    showAmounts: boolean;
+    showMemberNames: boolean;
+    mergedInsights: boolean;
+}
+
+
+// 그룹 멤버
+export interface GroupMember {
+    userId: string;
+    status: 'leader_invited' | 'member_requested' | 'active' | 'declined';
+    method: 'invite' | 'code';
+    requestedAt: string;
+    joinedAt?: string;
+}
+
+// 그룹
+export interface Group {
+    _id: string;
+    name: string;
+    leaderId: string;
+    inviteCode: string;
+    inviteCodeEnabled: boolean;
+    members: GroupMember[];
+    settings: GroupSettings;
+    status: 'pending' | 'active';
+    createdAt: string;
+    updatedAt: string;
 }
