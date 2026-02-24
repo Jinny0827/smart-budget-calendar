@@ -5,6 +5,11 @@ export interface IUser extends Document {
     email: string;
     password: string;
     name: string;
+    nickname?: string;
+    role: 'user' | 'admin';
+    status: 'pending' | 'approved' | 'rejected';
+    otpSecret?: string;
+    otpEnabled: boolean;
     createdAt: Date;
 }
 
@@ -28,6 +33,27 @@ const UserSchema = new Schema<IUser>(
             type: String,
             required: [true, '이름은 필수입니다'],
             trim: true
+        },
+        nickname: {
+            type: String,
+            trim: true
+        },
+        role: {
+            type: String,
+            enum: ['user', 'admin'],
+            default: 'user'
+        },
+        status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending'
+        },
+        otpSecret: {
+            type: String
+        },
+        otpEnabled: {
+            type: Boolean,
+            default: false
         }
     },
     {

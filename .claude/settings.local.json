@@ -11,7 +11,8 @@
       "Bash(cmd.exe /c \"cd /d C:\\\\workspace\\\\smart-budget-calendar\\\\backend && npm install xlsx multer @types/multer --save\")",
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
-      "Bash(aws s3 sync:*)"
+      "Bash(aws s3 sync:*)",
+      "Bash(git -C /c/workspace/smart-budget-calendar log --oneline -15)"
     ]
   }
 }

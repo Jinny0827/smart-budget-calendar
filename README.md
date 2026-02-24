@@ -1,86 +1,142 @@
-📅💰 Smart Budget Calendar (지출 연동 AI 스마트 가계부)
-단순한 가계부를 넘어, 일정과 지출 데이터를 결합하고 AI를 통해 사용자에게 최적의 재정 인사이트를 제공하는 지능형 관리 시스템입니다.
+# 📅💰 Smart Budget Calendar
 
-🎯 프로젝트 핵심 가치
-데이터 결합: 일정과 지출을 하나의 타임라인에서 관리하여 소비의 이유(이벤트)를 파악합니다.
+> 일정과 지출을 연동하여 **"왜 이 돈을 썼는가"** 를 파악하고, AI를 통해 개인화된 소비 패턴 분석 및 예산을 추천하는 지능형 가계부 시스템
 
-AI 분석: Gemini, Groq 등의 LLM을 활용하여 개인화된 소비 패턴 분석 및 예산을 추천합니다.
+**배포 URL:** https://budget.bowling-manager.com
 
-자동화: 카드 내역 파싱 및 공휴일 연동을 통해 데이터 입력의 번거로움을 최소화합니다.
+---
 
-🛠️ 확장된 기술 스택
-Frontend
-Framework: React 19 + TypeScript
+## 🎯 핵심 기능
 
-Routing: React Router 7
+| 기능 | 설명 |
+|------|------|
+| 📆 일정·지출 연동 | 특정 일정에 지출을 매핑하여 이벤트별 비용 추적 |
+| 🤖 AI 인사이트 | Gemini / Groq LLM 기반 소비 패턴 분석·예산 추천 |
+| 📊 통계 대시보드 | 월별 요약, 카테고리별 비중 시각화 (Recharts) |
+| 💳 카드 내역 임포트 | 엑셀(.xlsx) 카드 명세서 자동 파싱·등록 |
+| 🎌 공휴일 연동 | 공공데이터포탈 API로 한국 공휴일 자동 표시 |
 
-Visualization: Recharts (통계), React Big Calendar (일정/지출 시각화)
+---
 
-Styling: Tailwind CSS
+## 🛠️ 기술 스택
 
-Backend
-Runtime: Node.js (Express.js) + TypeScript
+**Frontend**
+- React 19 + TypeScript / Vite
+- React Router 7, Tailwind CSS
+- Recharts (통계), React Big Calendar (일정)
 
-Database: MongoDB Atlas (Mongoose ODM)
+**Backend**
+- Node.js + Express.js + TypeScript
+- MongoDB Atlas (Mongoose ODM)
+- JWT 인증 (jsonwebtoken + bcryptjs)
 
-Auth: JWT (JSON Web Token) + bcryptjs
+**AI & 외부 서비스**
+- Google Gemini 2.0 Flash API
+- Groq Llama 3.3 70B API
+- 공공데이터포탈 공휴일 API
 
-AI & External Services
-LLM Engines: Google Gemini API, Groq Cloud API
+**배포**
+- AWS Lambda + API Gateway (서울 리전)
+- aws-serverless-express
 
-External Data: 공휴일 정보 API 연동, Excel/Text 기반 카드 내역 파서
+---
 
-✨ 실제 구현된 주요 기능
-1. 지능형 일정 및 지출 관리
-   연동 관리: 특정 일정(scheduleId)과 지출 내역을 매핑하여 해당 이벤트에서 발생한 비용을 추적합니다.
+## 📁 프로젝트 구조
 
-반복 패턴 분석: 주기적으로 발생하는 일정과 그에 따른 고정 지출 패턴을 식별합니다.
-
-공휴일 자동 반영: 외부 API를 통해 공휴일 정보를 가져와 캘린더에 자동 표시합니다.
-
-2. AI 기반 인사이트 (/services/ai-service.ts)
-   멀티 엔진 분석: 설정에 따라 Gemini 또는 Groq를 선택하여 소비 리포트를 생성합니다.
-
-이상 지출 탐지: 표준편차 기반 로직으로 평소보다 과도한 지출이 발생했을 때 알림을 제공합니다.
-
-맞춤형 예산 추천: 유사한 과거 일정의 데이터를 분석하여 향후 일정에 적합한 예산을 제안합니다.
-
-3. 데이터 편의 기능
-   카드 내역 임포트: 엑셀 파일(xlsx)이나 카드 결제 문자를 파싱하여 지출 내역을 일괄 등록합니다.
-
-통계 대시보드: 월별 지출 요약, 카테고리별 비중 등을 시각화하여 제공합니다.
-
-📁 프로젝트 구조 (Actual)
-Plaintext
+```
 smart-budget-calendar/
 ├── backend/
-│   ├── src/
-│   │   ├── controllers/    # auth, expense, holiday, import, insight, schedule
-│   │   ├── models/         # User, Schedule, Expense, InsightCache
-│   │   ├── services/       # AI(Gemini, Groq), Card Import, Holiday 연동 로직
-│   │   └── middleware/     # JWT 인증 및 에러 핸들링
-├── frontend/
-│   ├── src/
-│   │   ├── pages/          # Dashboard, Schedules, Expenses, Auth
-│   │   ├── services/       # API 클라이언트 (Axios 기반)
-│   │   └── types/          # 공통 TypeScript 인터페이스
-└── README.md
-🚀 시작하기
-환경 변수 설정 (.env)
-백엔드 루트에 .env 파일을 생성하고 다음 항목을 설정해야 합니다:
+│   └── src/
+│       ├── controllers/    # auth, expense, holiday, import, insight, schedule
+│       ├── models/         # User, Schedule, Expense, InsightCache
+│       ├── routes/         # 라우트 정의
+│       ├── services/       # AI, 카드 임포트, 공휴일 비즈니스 로직
+│       ├── middleware/     # JWT 인증
+│       ├── utils/          # JWT 유틸
+│       └── lambda.ts       # AWS Lambda 핸들러
+└── frontend/
+    └── src/
+        ├── pages/          # Dashboard, Schedules, Expenses, Login, Register
+        ├── services/       # API 클라이언트 (Axios 기반, 7개 모듈)
+        ├── components/     # 재사용 컴포넌트
+        ├── hooks/          # 커스텀 훅
+        └── types/          # 공통 TypeScript 인터페이스
+```
 
-MONGODB_URI: MongoDB 연결 문자열
+---
 
-JWT_SECRET: 토큰 암호화 키
+## 🚀 시작하기
 
-GEMINI_API_KEY 또는 GROQ_API_KEY: AI 분석용 키
+### 1. 환경변수 설정
 
-설치 및 실행
-Bash
-# Backend
-cd backend && npm install && npm run dev
+`backend/.env` 파일 생성:
 
-# Frontend
-cd frontend && npm install && npm run dev
-👤 개발자
-GitHub: @Jinny0827
+```env
+PORT=5000
+NODE_ENV=development
+MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/smart-budget
+JWT_SECRET=<랜덤 시크릿 키>
+JWT_EXPIRES_IN=7d
+CORS_ORIGIN=http://localhost:5173
+GEMINI_API_KEY=<Google AI Studio 키>
+GROQ_API_KEY=<Groq Cloud 키>
+HOLIDAY_API_KEY=<공공데이터포탈 인증키>
+```
+
+`frontend/.env` 파일 생성:
+
+```env
+VITE_API_URL=http://localhost:5000/api
+```
+
+### 2. 설치 및 실행
+
+```bash
+# Backend (포트 5000)
+cd backend
+npm install
+npm run dev
+
+# Frontend (포트 5173)
+cd frontend
+npm install
+npm run dev
+```
+
+### 3. 프로덕션 빌드
+
+```bash
+cd backend && npm run build
+cd frontend && npm run build
+```
+
+---
+
+## 📡 API 구조
+
+| 모듈 | Base Path | 주요 기능 |
+|------|-----------|-----------|
+| 인증 | `/api/auth` | 회원가입, 로그인, 유저 정보 |
+| 일정 | `/api/schedules` | CRUD + 반복 패턴 조회 |
+| 지출 | `/api/expenses` | CRUD + 카테고리별 통계 |
+| 인사이트 | `/api/insights` | AI 분석 조회/트리거, 일정별 예산 추천 |
+| 임포트 | `/api/import` | 카드 명세서 엑셀 파일 업로드 |
+| 공휴일 | `/api/holidays` | 한국 공휴일 목록 |
+
+모든 `/api/schedules`, `/api/expenses`, `/api/insights`, `/api/import`, `/api/holidays` 엔드포인트는 `Authorization: Bearer <JWT>` 헤더 필요.
+
+---
+
+## 🗃️ 데이터 모델
+
+**Schedule** — 일정 (`업무 | 개인 | 운동 | 여행 | 식사 | 쇼핑 | 기타`)
+
+**Expense** — 지출/수입 (`식비 | 교통 | 쇼핑 | ... | 급여 | 부업 | ...`), `scheduleId`로 일정과 연결
+
+**InsightCache** — AI 분석 결과 캐시 (1시간 TTL, 데이터 해시 기반 무효화)
+
+---
+
+## 👤 개발자
+
+**정원진** — GitHub: [@Jinny0827](https://github.com/Jinny0827)

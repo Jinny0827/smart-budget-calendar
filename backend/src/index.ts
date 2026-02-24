@@ -8,6 +8,8 @@ import expenseRoutes from "./routes/expense-routes";
 import insightRoutes from "./routes/insight-routes";
 import holidayRoutes from "./routes/holiday-routes";
 import importRoutes from "./routes/import-routes";
+import adminRoutes from "./routes/admin-routes";
+import groupRoutes from "./routes/group-routes";
 
 dotenv.config();
 
@@ -58,6 +60,8 @@ app.use('/api/expenses', expenseRoutes);
 app.use('/api/insights', insightRoutes);
 app.use('/api/holidays', holidayRoutes);
 app.use('/api/import', importRoutes);
+app.use('/api/admin', adminRoutes);
+app.use('/api/groups', groupRoutes);
 
 
 // [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.

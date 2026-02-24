@@ -1,7 +1,8 @@
-import 'express';
+export {};
 
-declare module 'express' {
-    export interface Request {
+declare module 'express-serve-static-core' {
+    interface Request {
         userId?: string;
+        role?: string;
     }
 }
