@@ -121,6 +121,9 @@ function DashboardPage() {
                     <h1 className="text-2xl font-bold text-gray-900">스마트 가계부</h1>
                     <div className="flex items-center gap-4">
                         <span className="text-gray-700">{user?.name}님</span>
+                        <button onClick={() => navigate('/account')} className="px-3 py-2 text-gray-600 hover:text-blue-600 text-sm">
+                            계정 관리
+                        </button>
                         <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600">
                             로그아웃
                         </button>
@@ -134,6 +137,10 @@ function DashboardPage() {
                         <button onClick={() => navigate('/dashboard')} className="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">대시보드</button>
                         <button onClick={() => navigate('/schedules')} className="px-4 py-2 text-gray-600 hover:text-blue-600">일정 관리</button>
                         <button onClick={() => navigate('/expenses')} className="px-4 py-2 text-gray-600 hover:text-blue-600">지출 관리</button>
+                        <button onClick={() => navigate('/groups')} className="px-4 py-2 text-gray-600 hover:text-blue-600">그룹</button>
+                        {user?.role === 'admin' && (
+                            <button onClick={() => navigate('/admin')} className="px-4 py-2 text-purple-600 hover:text-purple-800 font-medium">백오피스</button>
+                        )}
                     </div>
                 </div>
             </nav>

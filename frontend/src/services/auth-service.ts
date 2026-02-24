@@ -1,5 +1,5 @@
 import api from './api';
-import type { ApiResponse, AuthResponse, User } from "../types";
+import type { ApiResponse, LoginResponse, RegisterResponse, OtpVerifyResponse, User } from "../types";
 
 
 // 회원 가입
@@ -7,17 +7,12 @@ export const register = async (
     email: string,
     password: string,
     name: string,
-): Promise<AuthResponse> => {
-    const response = await api.post<ApiResponse<AuthResponse>>('/auth/register', {
+): Promise<RegisterResponse> => {
+    const response = await api.post<ApiResponse<RegisterResponse>>('/auth/register', {
         email,
         password,
         name
     })
-
-    if (response.data.data) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
-    }
 
     return response.data.data!;
 }
@@ -26,19 +21,22 @@ export const register = async (
 export const login = async (
     email: string,
     password: string,
-): Promise<AuthResponse> => {
-    const response = await api.post<ApiResponse<AuthResponse>>('/auth/login', {
+): Promise<LoginResponse> => {
+
+    const response = await api.post<ApiResponse<LoginResponse>>('/auth/login', {
         email,
         password,
     })
 
-    // 토큰과 사용자 정보 저장
-    if (response.data.data) {
-        localStorage.setItem('token', response.data.data.token);
-        localStorage.setItem('user', JSON.stringify(response.data.data.user));
+    const data = response.data.data!;
+
+    // OTP 미사용 직접 로그인 시에만 로컬 저장
+    if(data.token && data.user) {
+        localStorage.setItem('token', data.token);
+        localStorage.setItem('user', JSON.stringify(data.user));
     }
 
-    return response.data.data!;
+    return data;
 }
 
 // 로그아웃
@@ -49,7 +47,7 @@ export const logout = (): void => {
 
 // 내 정보 조회
 export const getMe = async (): Promise<User> => {
-    const response = await api.get<ApiResponse<{ user: User }>>('/auth/me');
+    const response = await api.post<ApiResponse<{ user: User }>>('/auth/me');
     return response.data.data!.user;
 };
 
@@ -62,4 +60,34 @@ export const isAuthenticated = (): boolean => {
 export const getCurrentUser = (): User | null => {
     const userStr = localStorage.getItem('user');
     return userStr ? JSON.parse(userStr) : null;
+};
+
+// OTP 검증 (2단계 로그인 완료) — tempToken으로 검증 후 실제 토큰 발급
+export const verifyOtp = async (tempToken: string, code: string):Promise<OtpVerifyResponse> => {
+    const response = await api.post<ApiResponse<OtpVerifyResponse>>('/auth/otp/verify', {
+        tempToken,
+        code,
+    });
+
+    const data = response.data.data!;
+    localStorage.setItem('token', data.token);
+    localStorage.setItem('user', JSON.stringify(data.user));
+
+    return data;
+}
+
+// OTP 설정 초기화 — QR코드 및 시크릿 반환
+export const setupOtp = async (): Promise<{ qrCode: string; secret: string }> => {
+    const response = await api.post<ApiResponse<{ qrCode: string; secret: string }>>('/auth/otp/setup');
+    return response.data.data!;
+};
+
+// OTP 활성화
+export const enableOtp = async (code: string): Promise<void> => {
+    await api.post('/auth/otp/enable', { code });
+};
+
+// OTP 비활성화
+export const disableOtp = async (code: string): Promise<void> => {
+    await api.post('/auth/otp/disable', { code });
 };
