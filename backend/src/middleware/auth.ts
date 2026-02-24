@@ -24,8 +24,9 @@ export const authenticationToken = async (
             return;
         }
 
-        const { userId } = verifyToken(token);
-        (req as any).userId = userId;
+        const { userId, role } = verifyToken(token);
+        req.userId = userId;
+        req.role = role;
 
         next();
     } catch (error) {
@@ -34,4 +35,20 @@ export const authenticationToken = async (
             message: '유효하지 않은 토큰입니다'
         });
     }
+};
+
+// 어드민 전용 미들웨어
+export const requireAdmin = (
+    req: Request,
+    res: Response,
+    next: NextFunction
+): void => {
+    if (req.role !== 'admin') {
+        res.status(403).json({
+            success: false,
+            message: '관리자 권한이 필요합니다.'
+        });
+        return;
+    }
+    next();
 }
