@@ -69,6 +69,6 @@ export const removeMember = async (groupId: string, userId: string): Promise<voi
 
 // 받은 초대 목록 조회 (나에게 온 대기 중인 초대)
 export const getPendingInvites = async (): Promise<Group[]> => {
-    const response = await api.get<ApiResponse<{ groups: Group[] }>>('/groups/invites');
-    return response.data.data!.groups;
+    const response = await api.get<ApiResponse<{ invites: Group[] }>>('/groups/invites');
+    return response.data.data!.invites;
 };

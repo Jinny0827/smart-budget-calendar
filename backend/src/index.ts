@@ -10,6 +10,7 @@ import holidayRoutes from "./routes/holiday-routes";
 import importRoutes from "./routes/import-routes";
 import adminRoutes from "./routes/admin-routes";
 import groupRoutes from "./routes/group-routes";
+import userRoutes from "./routes/user-routes";
 
 dotenv.config();
 
@@ -32,7 +33,7 @@ app.use(cors({
         }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
@@ -62,6 +63,7 @@ app.use('/api/holidays', holidayRoutes);
 app.use('/api/import', importRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
+app.use('/api/users', userRoutes);
 
 
 // [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.
