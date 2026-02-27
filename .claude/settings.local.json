@@ -12,7 +12,8 @@
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
       "Bash(aws s3 sync:*)",
-      "Bash(git -C /c/workspace/smart-budget-calendar log --oneline -15)"
+      "Bash(git -C /c/workspace/smart-budget-calendar log --oneline -15)",
+      "Bash(cat /c/workspace/smart-budget-calendar/frontend/.env*)"
     ]
   }
 }

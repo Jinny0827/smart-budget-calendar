@@ -13,7 +13,7 @@ Globals:
         MONGODB_URI: !Ref MongoDBUri
         JWT_SECRET: !Ref JwtSecret
         GROQ_API_KEY: !Ref GroqApiKey
-        HOLIDAY_SERVICE_KEY: !Ref HolidayServiceKey
+        HOLIDAY_API_KEY: !Ref HolidayServiceKey
 
 Parameters:
   MongoDBUri:
