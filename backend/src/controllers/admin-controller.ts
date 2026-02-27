@@ -19,9 +19,19 @@ export const getUsers = async (req: Request, res: Response):Promise<void>  => {
             .select('-password -otpSecret')
             .sort({ createdAt: -1 });
 
+        const mappedUsers = users.map(u => ({
+            id: u._id,
+            email: u.email,
+            name: u.name,
+            nickname: u.nickname,
+            role: u.role,
+            status: u.status,
+            otpEnabled: u.otpEnabled,
+        }));
+
         res.status(200).json({
             success: true,
-            data: { users, total: users.length }
+            data: { users: mappedUsers, total: mappedUsers.length }
         });
 
     } catch (error) {

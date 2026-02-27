@@ -12,7 +12,15 @@
       "Bash(powershell -Command:*)",
       "Bash(npm run build:*)",
       "Bash(aws s3 sync:*)",
-      "Bash(git -C /c/workspace/smart-budget-calendar log --oneline -15)"
+      "Bash(git -C /c/workspace/smart-budget-calendar log --oneline -15)",
+      "Bash(ls:*)",
+      "Bash(\"/c/Program Files/Amazon/AWSSAMCLI/bin/sam.cmd\" deploy)",
+      "Bash(aws s3 ls:*)",
+      "Bash(aws cloudfront list-distributions:*)",
+      "Bash(aws cloudfront create-invalidation:*)",
+      "Bash(aws cloudfront get-distribution-config:*)",
+      "Bash(python3:*)",
+      "Bash(aws cloudfront update-distribution:*)"
     ]
   }
 }
