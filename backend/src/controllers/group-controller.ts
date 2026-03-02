@@ -407,7 +407,6 @@ export const getPendingInvites = async (req: Request, res: Response): Promise<vo
             status: 'active',
             members: {$elemMatch: {userId : req.userId, status: 'leader_invited'}}
         })
-            .select('name leaderId')
             .populate('leaderId', 'name nickname')
 
 

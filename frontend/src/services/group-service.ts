@@ -10,7 +10,7 @@ export const createGroup = async (name: string): Promise<Group> => {
 // 내가 속한 그룹 목록 조회
 export const getMyGroups = async (): Promise<Group[]> => {
     const response = await api.get<ApiResponse<{ groups: Group[] }>>('/groups');
-    return response.data.data!.groups;
+    return response.data.data?.groups ?? [];
 };
 
 // 특정 그룹 상세 조회
@@ -70,5 +70,5 @@ export const removeMember = async (groupId: string, userId: string): Promise<voi
 // 받은 초대 목록 조회 (나에게 온 대기 중인 초대)
 export const getPendingInvites = async (): Promise<Group[]> => {
     const response = await api.get<ApiResponse<{ invites: Group[] }>>('/groups/invites');
-    return response.data.data!.invites;
+    return response.data.data?.invites ?? [];
 };

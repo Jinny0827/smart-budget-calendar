@@ -330,7 +330,7 @@ function GroupPage() {
                                                 <div>
                                                     <p className="font-medium text-sm">{g.name}</p>
                                                     <p className="text-xs text-gray-500">
-                                                        멤버 {g.members.filter(m => m.status === 'active').length}명
+                                                        멤버 {(g.members ?? []).filter(m => m.status === 'active').length}명
                                                         {isLeader(g) && <span className="ml-2 text-purple-600">그룹장</span>}
                                                     </p>
                                                 </div>

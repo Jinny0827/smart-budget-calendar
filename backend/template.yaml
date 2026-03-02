@@ -14,6 +14,7 @@ Globals:
         JWT_SECRET: !Ref JwtSecret
         GROQ_API_KEY: !Ref GroqApiKey
         HOLIDAY_API_KEY: !Ref HolidayServiceKey
+        CORS_ORIGIN: !Ref CorsOrigin
 
 Parameters:
   MongoDBUri:
@@ -23,6 +24,8 @@ Parameters:
   GroqApiKey:
     Type: String
   HolidayServiceKey:
+    Type: String
+  CorsOrigin:
     Type: String
 
 Resources:
