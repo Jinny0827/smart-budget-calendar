@@ -1,6 +1,7 @@
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import mongoSanitize from 'express-mongo-sanitize';
 import { connectDB } from './config/database';
 import authRoutes from "./routes/auth-routes";
 import scheduleRoutes from "./routes/schedule-routes";
@@ -39,6 +40,7 @@ app.use(cors({
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true}));
+app.use(mongoSanitize()); // NoSQL Injection 방어: $, . 로 시작하는 키 제거
 
 // DB 연결 (Lambda는 핸들러 밖에서 연결하는 것이 성능상 유리합니다)
 connectDB();
