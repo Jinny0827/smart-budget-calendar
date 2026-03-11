@@ -130,7 +130,14 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
     try {
         const userId = (req as any).userId;
         const { id } = req.params;
-        const updateData = req.body;
+        const { amount, category, description, date, scheduleId, type } = req.body;
+        const updateData: Record<string, any> = {};
+        if (amount !== undefined) updateData.amount = amount;
+        if (category !== undefined) updateData.category = category;
+        if (description !== undefined) updateData.description = description;
+        if (date !== undefined) updateData.date = date;
+        if (scheduleId !== undefined) updateData.scheduleId = scheduleId;
+        if (type !== undefined) updateData.type = type;
 
         const expense = await Expense.findOneAndUpdate(
             { _id: id, userId },
