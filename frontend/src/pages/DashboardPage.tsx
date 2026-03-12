@@ -87,7 +87,7 @@ function DashboardPage() {
         fetchAll();
     }, []);
 
-    const handleLogout = () => { logout(); navigate('/login'); };
+    const handleLogout = () => { logout(); window.location.href = '/login'; };
 
     const totalIncome = stats?.incomeTotal?.total || 0;
     const totalExpense = stats?.expenseTotal?.total || 0;

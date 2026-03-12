@@ -210,7 +210,19 @@ function GroupPage() {
         }
     };
 
-    const isLeader = (group: Group) => group.leaderId === currentUser?.id;
+    const isLeader = (group: Group) => {
+        const lid = typeof group.leaderId === 'string'
+            ? group.leaderId
+            : (group.leaderId as any)?._id;
+        return lid === currentUser?.id;
+    };
+
+    const getMemberId = (userId: any): string =>
+        typeof userId === 'object' ? userId._id : userId;
+
+    const getMemberName = (userId: any): string =>
+        typeof userId === 'object' ? (userId.nickname || userId.name) : userId;
+
 
     const settingLabels: Record<keyof GroupSettings, string> = {
         shareSchedules: '일정 공유',
@@ -383,14 +395,14 @@ function GroupPage() {
                             <h2 className="font-semibold p-4 border-b text-sm">멤버</h2>
                             <ul className="divide-y">
                                 {selectedGroup.members.map((m) => (
-                                    <li key={m.userId} className="p-4 flex items-center justify-between">
+                                    <li key={getMemberId(m.userId)} className="p-4 flex items-center justify-between">
                                         <div>
                                             <p className="text-sm font-medium">
-                                                {m.userId}
-                                                {m.userId === selectedGroup.leaderId && (
+                                                {getMemberName(m.userId)}   {/* ← 객체 → 이름 */}
+                                                {getMemberId(m.userId) === getMemberId(selectedGroup.leaderId) && (
                                                     <span className="ml-2 text-xs text-purple-600">그룹장</span>
                                                 )}
-                                                {m.userId === currentUser?.id && (
+                                                {getMemberId(m.userId) === currentUser?.id && (
                                                     <span className="ml-2 text-xs text-blue-600">나</span>
                                                 )}
                                             </p>
@@ -400,23 +412,21 @@ function GroupPage() {
                                             </p>
                                         </div>
                                         <div className="flex gap-2">
-                                            {/* 그룹장: 참가 요청 승인 */}
                                             {isLeader(selectedGroup) && m.status === 'member_requested' && (
                                                 <button
-                                                    onClick={() => handleApproveMember(m.userId)}
+                                                    onClick={() => handleApproveMember(getMemberId(m.userId))}
                                                     className="px-2 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600"
                                                 >
                                                     승인
                                                 </button>
                                             )}
-                                            {/* 강퇴(그룹장) 또는 탈퇴(본인) */}
-                                            {(isLeader(selectedGroup) && m.userId !== selectedGroup.leaderId) ||
-                                             (m.userId === currentUser?.id && !isLeader(selectedGroup)) ? (
+                                            {(isLeader(selectedGroup) && getMemberId(m.userId) !== getMemberId(selectedGroup.leaderId)) ||
+                                            (getMemberId(m.userId) === currentUser?.id && !isLeader(selectedGroup)) ? (
                                                 <button
-                                                    onClick={() => handleRemoveMember(m.userId)}
+                                                    onClick={() => handleRemoveMember(getMemberId(m.userId))}
                                                     className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200"
                                                 >
-                                                    {m.userId === currentUser?.id ? '탈퇴' : '강퇴'}
+                                                    {getMemberId(m.userId) === currentUser?.id ? '탈퇴' : '강퇴'}
                                                 </button>
                                             ) : null}
                                         </div>

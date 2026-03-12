@@ -291,7 +291,7 @@ function SchedulesPage() {
         }
     };
 
-    const handleLogout = () => { logout(); navigate('/login'); };
+    const handleLogout = () => { logout(); window.location.href = '/login'; };
 
     const messages = {
         today: '오늘', previous: '◀', next: '▶',

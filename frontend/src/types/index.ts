@@ -147,3 +147,23 @@ export interface Group {
     createdAt: string;
     updatedAt: string;
 }
+
+// 메시지 발신자 (populate된 결과)
+export interface MessageSender {
+    _id: string;
+    name: string;
+    nickname?: string;
+}
+
+// 메시지
+export interface Message {
+    _id: string;
+    senderId: MessageSender;
+    chatType: 'group' | 'direct';
+    groupId?: string;
+    recipientId?: string;
+    content: string;
+    readBy: string[];
+    createdAt: string;
+    updatedAt: string;
+}

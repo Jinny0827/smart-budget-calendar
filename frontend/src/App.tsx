@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { isAuthenticated } from './services/auth-service';
+import { isAuthenticated, getCurrentUser } from './services/auth-service';
+import { getMyGroups } from './services/group-service';
 
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -9,6 +11,10 @@ import ExpensesPage from './pages/ExpensesPage';
 import AccountPage from './pages/AccountPage';
 import AdminPage from './pages/AdminPage';
 import GroupPage from './pages/GroupPage';
+
+import { ChatButton } from './components/ChatButton';
+import { ChatPanel } from './components/ChatPanel';
+import type { User, Group } from './types';
 
 // 인증이 필요한 라우트 보호
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -22,6 +28,20 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 
 function App() {
+    const authenticated = isAuthenticated();
+
+    const [isChatOpen, setIsChatOpen] = useState(false);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
+    const [myGroups, setMyGroups] = useState<Group[]>([]);
+
+    useEffect(() => {
+        if (authenticated) {
+            const user = getCurrentUser();
+            setCurrentUser(user);
+            getMyGroups().then(setMyGroups).catch(console.error);
+        }
+    }, [authenticated]);
+
     return (
         <Router>
             <Routes>
@@ -97,6 +117,23 @@ function App() {
                 {/* 기본 리다이렉트 */}
                 <Route path="/" element={<Navigate to="/dashboard" />} />
             </Routes>
+
+            {isAuthenticated() && currentUser && (
+                <>
+                    <ChatButton
+                        onClick={() => setIsChatOpen((prev) => !prev)}
+                        unreadCount={0}
+                    />
+                    {isChatOpen && (
+                        <ChatPanel
+                            onClose={() => setIsChatOpen(false)}
+                            currentUser={currentUser}
+                            myGroups={myGroups}
+                        />
+                    )}
+                </>
+            )}
+
         </Router>
     );
 }

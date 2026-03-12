@@ -1,10 +1,10 @@
 import { useState} from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { login, verifyOtp } from '../services/auth-service';
 
 
 function LoginPage() {
-    const navigate = useNavigate();
+    // const navigate = useNavigate();
 
     const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
     const [email, setEmail] = useState('');
@@ -29,7 +29,8 @@ function LoginPage() {
                 setStep('otp');
             } else {
                 // 직접 로그인 성공
-                navigate('/dashboard');
+                // navigate('/dashboard');
+                window.location.href = '/dashboard';
             }
 
         } catch (err: any) {
@@ -47,7 +48,8 @@ function LoginPage() {
 
         try {
             await verifyOtp(tempToken, otpCode);
-            navigate('/dashboard');
+            // navigate('/dashboard');
+            window.location.href = '/dashboard';
         } catch (err: any) {
             setError(err.response?.data?.message || 'OTP 인증에 실패했습니다');
             setOtpCode('');

@@ -17,7 +17,14 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
         const group = await Group.create({
             name: name.trim(),
-            leaderId: req.userId
+            leaderId: req.userId,
+            members: [{
+                userId: req.userId,
+                status: 'active',
+                method: 'invite',
+                requestedAt: new Date(),
+                joinedAt: new Date()
+            }]
             // status: 'pending', inviteCode는 pre-save 훅에서 자동 생성
         });
 
@@ -248,9 +255,13 @@ export const respondToInvite = async (req: Request, res: Response): Promise<void
             return;
         }
 
-        memberEntry.status = action === 'accept' ? 'active' : 'declined';
-        if(action === 'accept') {
+        if (action === 'accept') {
+            memberEntry.status = 'active';
             memberEntry.joinedAt = new Date();
+        } else {
+            group.members = group.members.filter(
+                m => m.userId.toString() !== req.userId
+            ) as typeof group.members;
         }
 
         await group.save();
@@ -383,7 +394,7 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
        }
 
        const memberIndex = group.members.findIndex(
-           m => m.userId.toString() === userId && m.status === 'active'
+           m => m.userId.toString() === userId
        );
        if (memberIndex === -1) {
            res.status(404).json({ success: false, message: '해당 멤버를 찾을 수 없습니다' });

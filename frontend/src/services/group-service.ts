@@ -58,8 +58,12 @@ export const joinByCode = async (inviteCode: string): Promise<void> => {
 };
 
 // 참가 요청 승인 (그룹장 전용)
-export const approveMember = async (groupId: string, userId: string): Promise<void> => {
-    await api.post(`/groups/${groupId}/approve`, { userId });
+export const approveMember = async (
+    groupId: string,
+    userId: string,
+    action: 'approve' | 'reject' = 'approve'
+): Promise<void> => {
+    await api.post(`/groups/${groupId}/approve`, { userId, action });
 };
 
 // 멤버 강퇴 / 본인 탈퇴 (그룹장 or 본인)
