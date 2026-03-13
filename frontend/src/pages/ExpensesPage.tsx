@@ -203,6 +203,9 @@ function ExpensesPage() {
                         <button onClick={() => navigate('/expenses')} className="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">
                             지출 관리
                         </button>
+                        <button onClick={() => navigate('/board')} className="px-4 py-2 text-gray-600 hover:text-blue-600">
+                            게시판
+                        </button>
                     </div>
                 </div>
             </nav>

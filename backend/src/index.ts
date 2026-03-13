@@ -13,6 +13,7 @@ import adminRoutes from "./routes/admin-routes";
 import groupRoutes from "./routes/group-routes";
 import userRoutes from "./routes/user-routes";
 import messageRoutes from "./routes/message-routes";
+import postRoutes from "./routes/post-routes";
 
 dotenv.config();
 
@@ -68,6 +69,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/groups', groupRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/posts', postRoutes);
 
 
 // [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.
