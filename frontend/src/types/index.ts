@@ -167,3 +167,23 @@ export interface Message {
     createdAt: string;
     updatedAt: string;
 }
+
+// 게시판
+export interface Post {
+    _id: string;
+    authorId: { _id: string; nickname: string };
+    boardType: 'notice' | 'free';
+    title: string;
+    content: string;
+    isPinned: boolean;
+    views: number;
+    createdAt: string;
+    updatedAt: string;
+}
+
+export interface PostListResponse {
+    posts: Post[];
+    total: number;
+    page: number;
+    totalPages: number;
+}

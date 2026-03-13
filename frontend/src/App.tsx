@@ -11,6 +11,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import AccountPage from './pages/AccountPage';
 import AdminPage from './pages/AdminPage';
 import GroupPage from './pages/GroupPage';
+import BoardPage from './pages/BoardPage';
 
 import { ChatButton } from './components/ChatButton';
 import { ChatPanel } from './components/ChatPanel';
@@ -116,6 +117,9 @@ function App() {
 
                 {/* 기본 리다이렉트 */}
                 <Route path="/" element={<Navigate to="/dashboard" />} />
+
+                {/* 게시판 */}
+                <Route path="/board" element={<PrivateRoute><BoardPage /></PrivateRoute>} />
             </Routes>
 
             {isAuthenticated() && currentUser && (
