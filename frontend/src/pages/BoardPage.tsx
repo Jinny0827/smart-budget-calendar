@@ -15,7 +15,7 @@ export default function BoardPage() {
     const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [isWriting, setIsWriting]   = useState(false);
-    const [form, setForm]             = useState({ title: '', content: '', isPinned: false });
+    const [form, setForm]             = useState({ title: '', content: '', isPinned: false, showModal: false });
     const [editingId, setEditingId]   = useState<string | null>(null);
     const [loading, setLoading]       = useState(false);
 
@@ -56,7 +56,7 @@ export default function BoardPage() {
         } else {
             await postService.createPost(boardType, form);
         }
-        setForm({ title: '', content: '', isPinned: false });
+        setForm({ title: '', content: '', isPinned: false, showModal: false });
         setIsWriting(false);
         setEditingId(null);
         fetchPosts(1);
@@ -64,7 +64,7 @@ export default function BoardPage() {
 
     const handleEdit = () => {
         if (!selectedPost) return;
-        setForm({ title: selectedPost.title, content: selectedPost.content, isPinned: selectedPost.isPinned });
+        setForm({ title: selectedPost.title, content: selectedPost.content, isPinned: selectedPost.isPinned, showModal: selectedPost.showModal });
         setEditingId(selectedPost._id);
         setIsWriting(true);
         setSelectedPost(null);
@@ -136,8 +136,15 @@ export default function BoardPage() {
                         </div>
                         <button onClick={() => setSelectedPost(null)} className="text-gray-400 hover:text-gray-600">✕</button>
                     </div>
-                    <div className="text-sm text-gray-500 mb-4">
-                        {selectedPost.authorId.nickname} · {new Date(selectedPost.createdAt).toLocaleDateString()} · 조회 {selectedPost.views}
+                    <div className="text-sm text-gray-500 mb-4 flex items-center gap-2 flex-wrap">
+                        <span>{selectedPost.authorId.nickname}</span>
+                        <span>·</span>
+                        <span>{new Date(selectedPost.createdAt).toLocaleDateString()}</span>
+                        <span>·</span>
+                        <span>조회 {selectedPost.views}</span>
+                        {selectedPost.showModal && (
+                            <span className="text-xs bg-indigo-100 text-indigo-600 px-2 py-0.5 rounded">📢 팝업 공지</span>
+                        )}
                     </div>
                     <div className="whitespace-pre-wrap text-gray-800 mb-6">{selectedPost.content}</div>
                     {canManage(selectedPost) && (
@@ -159,10 +166,16 @@ export default function BoardPage() {
                         onChange={(e) => setForm({ ...form, title: e.target.value })}
                     />
                     {isAdmin && boardType === 'notice' && (
-                        <label className="flex items-center gap-2 mb-3 text-sm">
-                            <input type="checkbox" checked={form.isPinned} onChange={(e) => setForm({ ...form, isPinned: e.target.checked })} />
-                            상단 고정
-                        </label>
+                        <div className="flex flex-col gap-2 mb-3">
+                            <label className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked={form.isPinned} onChange={(e) => setForm({ ...form, isPinned: e.target.checked })} />
+                                상단 고정
+                            </label>
+                            <label className="flex items-center gap-2 text-sm">
+                                <input type="checkbox" checked={form.showModal} onChange={(e) => setForm({ ...form, showModal: e.target.checked })} />
+                                로그인 시 팝업으로 표시
+                            </label>
+                        </div>
                     )}
                     <textarea
                         className="w-full border rounded p-2 mb-4 h-40 resize-none"

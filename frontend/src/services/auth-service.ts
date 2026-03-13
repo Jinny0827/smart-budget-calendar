@@ -59,7 +59,17 @@ export const isAuthenticated = (): boolean => {
 // 저장된 사용자 정보 가져오기
 export const getCurrentUser = (): User | null => {
     const userStr = localStorage.getItem('user');
-    return userStr ? JSON.parse(userStr) : null;
+    if (!userStr || userStr === 'undefined') return null;
+    try {
+        const user = JSON.parse(userStr);
+        // _id만 있고 id가 없는 경우 정규화
+        if (user && !user.id && user._id) {
+            user.id = user._id;
+        }
+        return user;
+    } catch {
+        return null;
+    }
 };
 
 // OTP 검증 (2단계 로그인 완료) — tempToken으로 검증 후 실제 토큰 발급

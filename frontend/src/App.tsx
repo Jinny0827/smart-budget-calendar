@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { isAuthenticated, getCurrentUser } from './services/auth-service';
+import {isAuthenticated, getCurrentUser, logout} from './services/auth-service';
 import { getMyGroups } from './services/group-service';
 
 import LoginPage from './pages/LoginPage';
@@ -16,6 +16,7 @@ import BoardPage from './pages/BoardPage';
 import { ChatButton } from './components/ChatButton';
 import { ChatPanel } from './components/ChatPanel';
 import type { User, Group } from './types';
+import {NoticeModal} from "./components/NoticeModal.tsx";
 
 // 인증이 필요한 라우트 보호
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -34,12 +35,32 @@ function App() {
     const [isChatOpen, setIsChatOpen] = useState(false);
     const [currentUser, setCurrentUser] = useState<User | null>(null);
     const [myGroups, setMyGroups] = useState<Group[]>([]);
+    const [ showNotice, setShowNotice ] = useState(false);
+    const handleNoticeClose = useCallback(() => setShowNotice(false), []);
 
     useEffect(() => {
         if (authenticated) {
-            const user = getCurrentUser();
-            setCurrentUser(user);
+            const storedUser = getCurrentUser();
+
+            if (!storedUser) {
+                // user 데이터 없으면 그냥 로그아웃
+                logout();
+                return;
+            }
+
+            setCurrentUser(storedUser);
             getMyGroups().then(setMyGroups).catch(console.error);
+        }
+    }, [authenticated]);
+
+    useEffect(() => {
+        if (authenticated) {
+            // 오늘 하루 안보기 체크
+            const today = new Date().toISOString().split('T')[0];
+            const dismissed = localStorage.getItem('noticeDismissedDate');
+            if (dismissed !== today) {
+                setShowNotice(true);
+            }
         }
     }, [authenticated]);
 
@@ -138,6 +159,9 @@ function App() {
                 </>
             )}
 
+            {showNotice && isAuthenticated() && (
+                <NoticeModal onClose={handleNoticeClose} />
+            )}
         </Router>
     );
 }

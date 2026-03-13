@@ -415,6 +415,8 @@ function SchedulesPage() {
                                     // ─── 날짜 숫자 + 공휴일명 표시 ──────────
                                     dateHeader: ({ date, label }: { date: Date; label: string }) => {
                                         const dateStr = format(date, 'yyyy-MM-dd');
+                                        const todayStr = format(new Date(), 'yyyy-MM-dd');
+                                        const isToday = dateStr === todayStr;
                                         const isSunday = date.getDay() === 0;
                                         const isSaturday = date.getDay() === 6;
                                         const holidayName = holidayNameMap.get(dateStr);
@@ -423,9 +425,18 @@ function SchedulesPage() {
                                         return (
                                             <div className="flex flex-col items-end pr-1">
                                                 <span style={{
-                                                    color: isRed ? '#ef4444' : isSaturday ? '#3b82f6' : undefined,
+                                                    // 오늘이면 흰 텍스트, 아니면 기존 색상
+                                                    color: isToday ? '#fff' : (isRed ? '#ef4444' : isSaturday ? '#3b82f6' : '#374151'),
                                                     fontSize: '13px',
-                                                    fontWeight: isRed ? 600 : undefined,
+                                                    fontWeight: isToday ? 700 : (isRed ? 600 : undefined),
+                                                    // 오늘이면 인디고 원형 배경
+                                                    backgroundColor: isToday ? '#4f46e5' : undefined,
+                                                    borderRadius: isToday ? '50%' : undefined,
+                                                    width: isToday ? '24px' : undefined,
+                                                    height: isToday ? '24px' : undefined,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
                                                 }}>
                                                     {label}
                                                 </span>

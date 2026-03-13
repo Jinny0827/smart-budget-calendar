@@ -9,13 +9,17 @@ export const getPosts = async (req: Request, res: Response): Promise<void> => {
         const limit = parseInt(req.query.limit as string) || 10;
         const skip = (page - 1) * limit;
 
+        const showModal = req.query.showModal === 'true' ? true : undefined;
+        const filter: Record<string, unknown> = { boardType };
+        if (showModal !== undefined) filter.showModal = showModal;
+
         const [ posts, total ] = await Promise.all([
-            Post.find({ boardType })
+            Post.find(filter)
                 .populate('authorId', 'nickname')
                 .sort({ isPinned: -1, createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
-            Post.countDocuments({ boardType }),
+            Post.countDocuments(filter),
         ]);
 
         res.json({ success: true, data: { posts, total, page, totalPages: Math.ceil(total / limit) } });
@@ -45,7 +49,7 @@ export const getPost = async (req: Request, res: Response): Promise<void> => {
 export const createPost = async (req: Request, res: Response): Promise<void> => {
     try {
         const { boardType } = req.params;
-        const { title, content, isPinned } = req.body;
+        const { title, content, isPinned, showModal } = req.body;
         const role = (req as any).role;
 
         // 공지 사항은 어드민만 작성 가능
@@ -58,7 +62,8 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
             boardType,
             title,
             content,
-            isPinned: boardType === 'notice' ? (isPinned ?? false) : false,
+            isPinned:  boardType === 'notice' ? (isPinned  ?? false) : false,
+            showModal: boardType === 'notice' ? (showModal ?? false) : false,
         });
 
         res.status(201).json({ success: true, data: post });
@@ -80,10 +85,13 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
             res.status(403).json({ success: false, message: '권한 없음' }); return;
         }
 
-        const { title, content, isPinned } = req.body;
+        const { title, content, isPinned, showModal } = req.body;
         post.title   = title   ?? post.title;
         post.content = content ?? post.content;
-        if (role === 'admin') post.isPinned = isPinned ?? post.isPinned;
+        if (role === 'admin') {
+            post.isPinned  = isPinned  ?? post.isPinned;
+            post.showModal = showModal ?? post.showModal;
+        }
         await post.save();
 
         res.json({ success: true, data: post });
