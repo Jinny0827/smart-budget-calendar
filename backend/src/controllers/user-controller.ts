@@ -26,7 +26,7 @@ export const updateNickname = async (req: Request, res: Response): Promise<void>
          res.status(200).json({
              success: true,
              message: '닉네임이 변경되었습니다',
-             data: { nickname: user.nickname }
+             data: { user }
          });
     } catch (error) {
         console.error('닉네임 변경 에러:', error);

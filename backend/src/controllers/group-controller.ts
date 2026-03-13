@@ -77,7 +77,7 @@ export const getGroupById = async (req: Request, res: Response): Promise<void> =
 
         const isLeader = group.leaderId._id.toString() === req.userId;
         const isMember = group.members.some(
-            m => m.userId.toString() === req.userId && m.status === 'active'
+            m => (m.userId as any)?._id?.toString() === req.userId && m.status === 'active'
         );
 
         if (!isLeader && !isMember) {

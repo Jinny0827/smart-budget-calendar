@@ -18,6 +18,8 @@
 | 👥 그룹 기능 | 그룹 생성·초대·참가, 일정·지출 공유, 통합 AI 인사이트 |
 | 🔐 2단계 인증 | Google Authenticator OTP(TOTP) 기반 2FA 지원 |
 | 🛡️ 관리자 기능 | 회원·그룹 승인/거절, 관리자 대시보드 |
+| 💬 채팅 | 그룹 단체 채팅 및 그룹원 간 1:1 개인 채팅 |
+| 📋 게시판 | 공지사항(관리자 전용) · 자유게시판, 로그인 시 팝업 공지 |
 
 ---
 
@@ -55,9 +57,9 @@
 smart-budget-calendar/
 ├── backend/
 │   └── src/
-│       ├── controllers/    # auth, expense, holiday, import, insight, schedule, group, admin, user
-│       ├── models/         # User, Schedule, Expense, InsightCache, Group
-│       ├── routes/         # auth, schedule, expense, insight, holiday, import, group, admin, user
+│       ├── controllers/    # auth, expense, holiday, import, insight, schedule, group, admin, user, post
+│       ├── models/         # User, Schedule, Expense, InsightCache, Group, Message, Post
+│       ├── routes/         # auth, schedule, expense, insight, holiday, import, group, admin, user, post, message
 │       ├── services/       # AI, 카드 임포트, 공휴일 비즈니스 로직
 │       ├── middleware/     # JWT 인증, 관리자 권한 검사
 │       ├── utils/          # JWT 유틸
@@ -65,9 +67,9 @@ smart-budget-calendar/
 │       └── lambda.ts       # AWS Lambda 핸들러
 └── frontend/
     └── src/
-        ├── pages/          # Dashboard, Schedules, Expenses, Login, Register, Groups, Admin, Account
-        ├── services/       # API 클라이언트 (Axios 기반, 9개 모듈)
-        ├── components/     # 재사용 컴포넌트
+        ├── pages/          # Dashboard, Schedules, Expenses, Login, Register, Groups, Admin, Account, Board
+        ├── services/       # API 클라이언트 (Axios 기반, 11개 모듈)
+        ├── components/     # ChatButton, ChatPanel, NoticeModal 등 재사용 컴포넌트
         ├── hooks/          # 커스텀 훅
         └── types/          # 공통 TypeScript 인터페이스
 ```
@@ -133,6 +135,8 @@ cd frontend && npm run build
 | 그룹 | `/api/groups` | 그룹 CRUD, 초대, 참가, 멤버 관리 |
 | 관리자 | `/api/admin` | 회원·그룹 승인/거절 |
 | 사용자 | `/api/users` | 닉네임 변경, 비밀번호 변경 |
+| 채팅 | `/api/messages` | 그룹 채팅, 1:1 개인 채팅 메시지 조회·저장 |
+| 게시판 | `/api/posts` | 공지사항·자유게시판 CRUD, 팝업 공지 필터 |
 
 모든 인증이 필요한 엔드포인트는 `Authorization: Bearer <JWT>` 헤더 필요.
 
@@ -149,6 +153,10 @@ cd frontend && npm run build
 **InsightCache** — AI 분석 결과 캐시 (1시간 TTL, 데이터 해시 기반 무효화)
 
 **Group** — 그룹 (`name, leaderId, members[], settings, inviteCode, status`)
+
+**Message** — 채팅 메시지 (`senderId, chatType(group|direct), groupId, recipientId, content, readBy`)
+
+**Post** — 게시글 (`authorId, boardType(notice|free), title, content, isPinned, showModal, views`)
 
 ---
 
@@ -179,11 +187,11 @@ sam deploy
 
 | 기능 | 설명 |
 |------|------|
-| 💬 그룹 채팅 | 그룹 내 실시간 단체 채팅 (WebSocket) |
-| 📩 1:1 채팅 | 사용자 간 개인 메시지 기능 |
-| 📋 게시판 | 공지사항 게시판 (관리자 작성), 자유게시판 (사용자 소통) |
+| 🚪 회원탈퇴 / 강퇴 | 본인 계정 탈퇴 및 관리자/그룹장의 그룹원 강퇴 기능 |
 | 📱 PWA 지원 | 모바일 앱처럼 설치·사용 가능하도록 PWA 적용 |
 | 🔔 알림 기능 | 초대·승인·예산 초과 등 푸시 알림 |
+| 🏠 랜딩 페이지 | `/` 루트 접속 시 서비스 소개 메인 페이지 |
+| 🎨 UI 리디자인 | Sharp Light 테마 기반 전체 UI 개선 |
 
 ---
 

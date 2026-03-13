@@ -176,6 +176,7 @@ export interface Post {
     title: string;
     content: string;
     isPinned: boolean;
+    showModal: boolean;
     views: number;
     createdAt: string;
     updatedAt: string;

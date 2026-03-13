@@ -31,20 +31,34 @@ export const ChatPanel = ({ onClose, currentUser, myGroups }: ChatPanelProps) =>
         await sendMessage(input);
         setInput('');
     }
+    
+    // uid 추출 헬퍼 (컴포넌트 상단 또는 함수 내부)
+    const getUid = (userId: any): string => {
+        if(typeof userId === 'object' && userId) {
+            return userId.id || userId._id?.toString() || '';
+        }
+
+        return userId || '';
+    }
+    
 
     // 그룹 멤버에 대한 아이디 필터 처리
     const contacts = myGroups
-        .flatMap((g) => g.members)
+        .flatMap((g) => {
+            const memberIds = new Set(g.members.map((m) => getUid(m.userId)));
+            const leaderUid = getUid(g.leaderId);
+            const extraLeader = !memberIds.has(leaderUid) && g.leaderId
+                    ? [{ userId: g.leaderId, status: 'active' as const, method: 'invite' as const, requestedAt: '' }]
+                    : [];
+            return [...g.members, ...extraLeader];
+        })
         .filter((m) => {
-            const uid = typeof m.userId === 'object' ? (m.userId as any)._id : m.userId;
+            const uid = getUid(m.userId);
             return m.status === 'active' && uid !== currentUser.id;
         })
         .filter((m, i, arr) => {
-            const uid = typeof m.userId === 'object' ? (m.userId as any)._id : m.userId;
-            return arr.findIndex((x) => {
-                const xId = typeof x.userId === 'object' ? (x.userId as any)._id : x.userId;
-                return xId === uid;
-            }) === i;
+            const uid = getUid(m.userId);
+            return arr.findIndex((x) => getUid(x.userId) === uid) === i
         });
 
     // 그룹장에 대한 뱃지 처리
@@ -120,9 +134,9 @@ export const ChatPanel = ({ onClose, currentUser, myGroups }: ChatPanelProps) =>
                         </p>
                     )}
                     {contacts.map((contact) => {
-                        const uid = typeof contact.userId === 'object' ? (contact.userId as any)._id : contact.userId;
+                        const uid = getUid(contact.userId);
                         const name = typeof contact.userId === 'object'
-                            ? ((contact.userId as any).nickname || (contact.userId as any).name)
+                            ? ((contact.userId as any).nickname || (contact.userId as any).name || '알 수 없음')
                             : contact.userId;
 
                         return (

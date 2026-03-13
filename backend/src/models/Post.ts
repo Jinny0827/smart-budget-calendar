@@ -6,6 +6,7 @@ export interface IPost extends Document {
     title: string;
     content: string;
     isPinned: boolean;
+    showModal: boolean;
     views: number;
     createdAt: Date;
     updatedAt: Date;
@@ -18,6 +19,7 @@ const PostSchema = new Schema<IPost>(
         title:     { type: String, required: true, maxlength: 100 },
         content:   { type: String, required: true },
         isPinned:  { type: Boolean, default: false },
+        showModal: { type: Boolean, default: false },
         views:     { type: Number, default: 0 },
     },
     { timestamps: true }
