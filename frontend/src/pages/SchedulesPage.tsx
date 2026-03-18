@@ -1,5 +1,5 @@
 // frontend/src/pages/SchedulesPage.tsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import type { View } from 'react-big-calendar';
@@ -63,9 +63,10 @@ function SchedulesPage() {
     const [error, setError] = useState('');
 
     // 카테고리 이름 목록 / 색상 맵 (categories state 기반)
-    const CATEGORIES = categories.map((c) => c.name);
-    const CATEGORY_COLORS: Record<string, string> = Object.fromEntries(
-        categories.map((c) => [c.name, c.color])
+    const CATEGORIES = useMemo(() => categories.map((c) => c.name), [categories]);
+    const CATEGORY_COLORS = useMemo<Record<string, string>>(
+        () => Object.fromEntries(categories.map((c) => [c.name, c.color])),
+        [categories]
     );
 
     // ─── 공휴일 state ────────────────────────────────────────
@@ -210,7 +211,7 @@ function SchedulesPage() {
                 padding: '2px 6px',
             },
         };
-    }, []);
+    }, [CATEGORY_COLORS]);
 
     // ─── 빈 날짜 드래그 범위 선택 → 생성 모달 ───────────────
     const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
