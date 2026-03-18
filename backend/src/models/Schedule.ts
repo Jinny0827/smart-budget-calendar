@@ -41,7 +41,7 @@ const ScheduleSchema = new Schema<ISchedule>(
         category: {
             type: String,
             required: [true, '카테고리는 필수입니다'],
-            enum: ['업무', '개인', '운동', '여행', '식사', '쇼핑', '기타'],
+            enum: ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'],
             default: '기타'
         },
         expenses: [{
