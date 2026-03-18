@@ -27,3 +27,8 @@ export const changePassword = async (
     });
 };
 
+// 회원탈퇴
+export const deleteAccount = async (password: string): Promise<void> => {
+    await api.delete('/users/me', { data: { password } });
+};
+

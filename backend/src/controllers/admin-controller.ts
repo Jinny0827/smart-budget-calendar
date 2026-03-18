@@ -156,3 +156,26 @@ export const approveGroup = async (req: Request, res: Response): Promise<void> =
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
+
+// 그룹 거절
+export const rejectGroup = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const group = await Group.findById(id);
+        if (!group) {
+            res.status(404).json({ success: false, message: '그룹을 찾을 수 없습니다' });
+            return;
+        }
+        if (group.status !== 'pending') {
+            res.status(400).json({ success: false, message: '대기 중인 그룹만 거절할 수 있습니다' });
+            return;
+        }
+
+        await Group.findByIdAndDelete(id);
+
+        res.status(200).json({ success: true, message: `"${group.name}" 그룹 거절 및 삭제 완료` });
+    } catch (error) {
+        console.error('그룹 거절 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};

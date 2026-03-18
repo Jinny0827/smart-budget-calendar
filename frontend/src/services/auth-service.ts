@@ -98,6 +98,6 @@ export const enableOtp = async (code: string): Promise<void> => {
 };
 
 // OTP 비활성화
-export const disableOtp = async (code: string): Promise<void> => {
-    await api.post('/auth/otp/disable', { code });
+export const disableOtp = async (): Promise<void> => {
+    await api.post('/auth/otp/disable');
 };

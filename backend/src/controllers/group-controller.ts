@@ -75,10 +75,14 @@ export const getGroupById = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const isLeader = group.leaderId._id.toString() === req.userId;
-        const isMember = group.members.some(
-            m => (m.userId as any)?._id?.toString() === req.userId && m.status === 'active'
-        );
+        const isLeader =
+            ((group.leaderId as any)._id?.toString() ?? group.leaderId.toString()) === req.userId;
+
+        const isMember =
+            group.members.some(m => {
+                const memberId = (m.userId as any)?._id.toString() ?? (m.userId as any)?.toString();
+                return memberId === req.userId && m.status === 'active';
+            })
 
         if (!isLeader && !isMember) {
             res.status(403).json({ success: false, message: '그룹 접근 권한이 없습니다' });
@@ -388,7 +392,18 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
            return;
        }
 
-       if (group.leaderId.toString() !== req.userId) {
+       const isLeader = group.leaderId.toString() === req.userId;
+       const isSelf = userId === req.userId;
+
+       // 본인 탈퇴
+       if (isSelf) {
+           if (isLeader) {
+               res.status(403).json({ success: false, message: '그룹장은 탈퇴할 수 없습니다' });
+               return;
+           }
+       }
+       // 강퇴
+       else if (!isLeader) {
            res.status(403).json({ success: false, message: '그룹장만 멤버를 추방할 수 있습니다' });
            return;
        }
@@ -427,6 +442,81 @@ export const getPendingInvites = async (req: Request, res: Response): Promise<vo
         });
     } catch (error) {
         console.error('초대 목록 조회 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+}
+
+// 그룹 해산 (그룹장만)
+export const deleteGroup = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+
+        const group = await Group.findById(id);
+
+        if (!group) {
+            res.status(404).json({ success: false, message: '그룹을 찾을 수 없습니다' });
+            return;
+        }
+
+        if (group.leaderId.toString() !== req.userId) {
+            res.status(403).json({ success: false, message: '그룹장만 그룹을 해산할 수 있습니다' });
+            return;
+        }
+
+        await Group.findByIdAndDelete(id);
+
+        res.status(200).json({ success: true, message: '그룹이 해산되었습니다' });
+    } catch (error) {
+        console.error('그룹 해산 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+}
+
+// 그룹장 양도 (그룹장만)
+export const transferLeader  = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { newLeaderId } = req.body;
+
+        const group = await Group.findById(id);
+        if (!group) {
+            res.status(404).json({ success: false, message: '그룹을 찾을 수 없습니다' });
+            return;
+        }
+
+        if (group.leaderId.toString() !== req.userId) {
+            res.status(403).json({ success: false, message: '그룹장만 권한을 양도할 수 있습니다' });
+            return;
+        }
+
+        const isActiveMember = group.members.some(
+            m => m.userId.toString() === newLeaderId && m.status === 'active'
+        );
+        if (!isActiveMember) {
+            res.status(400).json({ success: false, message: '활성 멤버에게만 양도할 수 있습니다' });
+            return;
+        }
+
+        const oldLeaderInMembers = group.members.some(
+            m => m.userId.toString() === req.userId
+        );
+
+        if (!oldLeaderInMembers) {
+            group.members.push({
+                userId: group.leaderId as mongoose.Types.ObjectId,
+                status: 'active',
+                method: 'invite',
+                requestedAt: new Date(),
+                joinedAt: new Date()
+            });
+        }
+
+        group.leaderId = new mongoose.Types.ObjectId(newLeaderId);
+        await group.save();
+
+        res.status(200).json({ success: true, message: '그룹장 권한이 양도되었습니다' });
+    } catch (error) {
+        console.error('그룹장 양도 에러:', error);
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }

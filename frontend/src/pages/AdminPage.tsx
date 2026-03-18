@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getCurrentUser } from '../services/auth-service';
-import { getUsers, approveUser, rejectUser, getGroups, approveGroup } from '../services/admin-service';
+import {getUsers, approveUser, rejectUser, getGroups, approveGroup, rejectGroup} from '../services/admin-service';
 import type { User, Group } from '../types';
 
 type TabType = 'users' | 'groups';
@@ -105,6 +105,21 @@ function AdminPage() {
             setActionLoading(null);
         }
     };
+
+    // 그룹 거절
+    const handleRejectGroup = async (groupId: string) => {
+        setActionLoading(groupId + '_reject');
+        try {
+            await rejectGroup(groupId);
+            setGroups((prev) => prev.filter((g) => g._id !== groupId));
+            setMsg('그룹을 거절했습니다.');
+        } catch {
+            setMsg('거절에 실패했습니다.');
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
 
     const statusBadge = (status: string) => {
         const styles: Record<string, string> = {
@@ -258,6 +273,15 @@ function AdminPage() {
                                                     className="px-3 py-1 bg-green-500 text-white text-xs rounded hover:bg-green-600 disabled:bg-gray-300"
                                                 >
                                                     {actionLoading === g._id ? '...' : '승인'}
+                                                </button>
+                                            )}
+                                            {g.status === 'pending' && (
+                                                <button
+                                                    onClick={() => handleRejectGroup(g._id)}
+                                                    disabled={actionLoading === g._id + '_reject'}
+                                                    className="px-3 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200 disabled:opacity-50"
+                                                >
+                                                    {actionLoading === g._id + '_reject' ? '...' : '거절'}
                                                 </button>
                                             )}
                                         </div>

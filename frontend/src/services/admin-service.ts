@@ -43,3 +43,8 @@ export const approveGroup = async (groupId: string): Promise<Group> => {
     );
     return response.data.data!.group;
 };
+
+// 그룹 생성 거절
+export const rejectGroup = async (groupId: string): Promise<void> => {
+    await api.patch(`/admin/groups/${groupId}/reject`);
+}

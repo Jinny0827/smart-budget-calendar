@@ -10,7 +10,9 @@ import {
     joinByCode,
     approveMember,
     removeMember,
-    getPendingInvites
+    getPendingInvites,
+    deleteGroup, transferLeader,
+
 } from '../controllers/group-controller';
 import { authenticationToken } from '../middleware/auth';
 
@@ -27,6 +29,8 @@ router.post('/:id/invite', authenticationToken, inviteMember);        // A방식
 router.post('/:id/respond', authenticationToken, respondToInvite);    // A방식 수락/거절
 router.post('/:id/approve', authenticationToken, approveMember);      // B방식 승인/거절
 router.delete('/:id/members/:userId', authenticationToken, removeMember);
+router.delete('/:id', authenticationToken, deleteGroup);
 router.patch('/:id/invite-code/refresh', authenticationToken, refreshInviteCode);
+router.patch('/:id/leader', authenticationToken, transferLeader);
 
 export default router;

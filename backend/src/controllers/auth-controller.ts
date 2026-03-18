@@ -82,8 +82,10 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             const tempToken = generateTempToken(user._id.toString());
             res.status(200).json({
                 success: true,
-                otpRequired: true,
-                tempToken
+                data: {
+                    otpRequired: true,
+                    tempToken
+                }
             });
             return;
         }
@@ -154,7 +156,7 @@ export const getMe = async (req: Request, res: Response) : Promise<void> => {
 // OTP 2단계 검증 (tempToken + OTP 코드 → 최종 JWT 발급)
 export const verifyOtp = async (req: Request, res: Response) : Promise<void> => {
     try {
-        const { tempToken, otpCode } = req.body;
+        const { tempToken, code: otpCode } = req.body;
 
         if (!tempToken || !otpCode) {
             res.status(400).json({ success: false, message: 'tempToken과 OTP 코드를 입력해주세요' });
@@ -261,7 +263,7 @@ export const setupOtp = async (req: Request, res: Response) : Promise<void> => {
 // OTP 활성화 (QR 코드 스캔 후 코드 입력으로 확인)
 export const enableOtp = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { otpCode } = req.body;
+        const { code: otpCode } = req.body;
         const user = await User.findById(req.userId);
 
         if (!user || !user.otpSecret) {
@@ -295,23 +297,9 @@ export const enableOtp = async (req: Request, res: Response): Promise<void> => {
 // OTP 비활성화
 export const disableOtp = async (req: Request, res: Response): Promise<void> => {
     try {
-        const { otpCode } = req.body;
         const user = await User.findById(req.userId);
-
-        if (!user || !user.otpSecret) {
-            res.status(400).json({ success: false, message: 'OTP가 설정되어 있지 않습니다' });
-            return;
-        }
-
-        const isValid = speakeasy.totp.verify({
-            secret: user.otpSecret,
-            encoding: 'base32',
-            token: otpCode,
-            window: 1
-        });
-
-        if (!isValid) {
-            res.status(401).json({ success: false, message: 'OTP 코드가 올바르지 않습니다' });
+        if (!user) {
+            res.status(404).json({ success: false, message: '사용자를 찾을 수 없습니다' });
             return;
         }
 
@@ -320,7 +308,6 @@ export const disableOtp = async (req: Request, res: Response): Promise<void> => 
         await user.save();
 
         res.status(200).json({ success: true, message: 'OTP가 비활성화되었습니다' });
-
     } catch (error) {
         console.error('OTP 비활성화 에러:', error);
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });

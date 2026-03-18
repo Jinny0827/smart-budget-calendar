@@ -76,3 +76,13 @@ export const getPendingInvites = async (): Promise<Group[]> => {
     const response = await api.get<ApiResponse<{ invites: Group[] }>>('/groups/invites');
     return response.data.data?.invites ?? [];
 };
+
+// 그룹 해산 (그룹장 전용)
+export const deleteGroup = async (groupId: string): Promise<void> => {
+    await api.delete(`/groups/${groupId}`);
+};
+
+// 그룹장 양도 (그룹장 전용)
+export const transferLeader = async (groupId: string, newLeaderId: string): Promise<void> => {
+    await api.patch(`/groups/${groupId}/leader`, { newLeaderId });
+};

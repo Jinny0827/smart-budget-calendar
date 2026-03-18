@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getMe, setupOtp, enableOtp, disableOtp } from '../services/auth-service';
-import { updateNickname, changePassword } from '../services/user-service';
+import {updateNickname, changePassword, deleteAccount} from '../services/user-service';
 import type { User } from '../types';
 
 function AccountPage() {
@@ -28,6 +28,12 @@ function AccountPage() {
     const [otpCode, setOtpCode] = useState('');
     const [otpMsg, setOtpMsg] = useState('');
     const [otpLoading, setOtpLoading] = useState(false);
+
+    // 회원탈퇴
+    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteMsg, setDeleteMsg] = useState('');
+    const [deleteLoading, setDeleteLoading] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
     // 내 정보 로드
     useEffect(() => {
@@ -121,20 +127,35 @@ function AccountPage() {
     };
 
     // ── OTP 비활성화 ───────────────────────────────────────────
-    const handleDisableOtp = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleDisableOtp = async () => {
+        if (!window.confirm('OTP를 비활성화하시겠습니까?')) return;
         setOtpMsg('');
         setOtpLoading(true);
         try {
-            await disableOtp(otpCode);
+            await disableOtp();
             setUser((prev) => prev ? { ...prev, otpEnabled: false } : prev);
             setOtpStep('idle');
-            setOtpCode('');
             setOtpMsg('OTP가 비활성화되었습니다.');
         } catch (err: any) {
-            setOtpMsg(err.response?.data?.message || '인증 코드가 올바르지 않습니다.');
+            setOtpMsg(err.response?.data?.message || '비활성화에 실패했습니다.');
         } finally {
             setOtpLoading(false);
+        }
+    };
+
+    // ── 회원탈퇴 ───────────────────────────────────────────────
+    const handleDeleteAccount = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setDeleteMsg('');
+        setDeleteLoading(true);
+        try {
+            await deleteAccount(deletePassword);
+            localStorage.removeItem('token');
+            navigate('/login');
+        } catch (err: any) {
+            setDeleteMsg(err.response?.data?.message || '탈퇴에 실패했습니다.');
+        } finally {
+            setDeleteLoading(false);
         }
     };
 
@@ -327,41 +348,62 @@ function AccountPage() {
                                 <span className="text-lg">🔐</span>
                                 <span className="text-sm font-medium">OTP가 활성화되어 있습니다</span>
                             </div>
+                            {/* 변경 전: 비활성화 버튼만 있었음 */}
                             <button
-                                onClick={() => { setOtpStep('disable'); setOtpMsg(''); }}
+                                onClick={handleSetupOtp}
+                                disabled={otpLoading}
+                                className="w-full bg-yellow-500 text-white py-2 rounded-lg hover:bg-yellow-600 disabled:bg-gray-400"
+                            >
+                                {otpLoading ? '설정 중...' : 'QR 코드 재설정 (Authenticator 앱 변경)'}
+                            </button>
+                            <button
+                                onClick={handleDisableOtp}
+                                disabled={otpLoading}
                                 className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
                             >
-                                OTP 비활성화
+                                {otpLoading ? '처리 중...' : 'OTP 비활성화'}
                             </button>
                         </div>
                     )}
+                </div>
 
-                    {/* OTP 비활성화 코드 입력 */}
-                    {otpStep === 'disable' && (
-                        <form onSubmit={handleDisableOtp} className="space-y-3">
-                            <p className="text-sm text-gray-600">
-                                비활성화하려면 현재 OTP 코드를 입력하세요.
-                            </p>
+                {/* 회원탈퇴 */}
+                <div className="bg-white rounded-lg shadow p-6 border border-red-200">
+                    <h2 className="text-lg font-semibold mb-1 text-red-600">회원탈퇴</h2>
+                    <p className="text-sm text-gray-500 mb-4">탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.</p>
+
+                    {!showDeleteConfirm ? (
+                        <button
+                            onClick={() => setShowDeleteConfirm(true)}
+                            className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600"
+                        >
+                            회원탈퇴
+                        </button>
+                    ) : (
+                        <form onSubmit={handleDeleteAccount} className="space-y-3">
+                            <p className="text-sm text-red-600 font-medium">정말 탈퇴하시겠습니까? 비밀번호를 입력하여 확인해주세요.</p>
                             <input
-                                type="text"
-                                value={otpCode}
-                                onChange={(e) => setOtpCode(e.target.value)}
-                                placeholder="6자리 OTP 코드"
-                                maxLength={6}
-                                className="w-full px-3 py-2 border rounded-lg text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-red-500"
+                                type="password"
+                                value={deletePassword}
+                                onChange={(e) => setDeletePassword(e.target.value)}
+                                placeholder="현재 비밀번호"
+                                className="w-full px-3 py-2 border border-red-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500"
                                 required
                                 autoFocus
                             />
+                            {deleteMsg && (
+                                <p className="text-sm text-red-600">{deleteMsg}</p>
+                            )}
                             <button
                                 type="submit"
-                                disabled={otpLoading || otpCode.length !== 6}
+                                disabled={deleteLoading}
                                 className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 disabled:bg-gray-400"
                             >
-                                {otpLoading ? '처리 중...' : '비활성화 확인'}
+                                {deleteLoading ? '처리 중...' : '탈퇴 확인'}
                             </button>
                             <button
                                 type="button"
-                                onClick={() => { setOtpStep('idle'); setOtpCode(''); }}
+                                onClick={() => { setShowDeleteConfirm(false); setDeletePassword(''); setDeleteMsg(''); }}
                                 className="w-full text-gray-500 hover:text-gray-700 text-sm"
                             >
                                 취소

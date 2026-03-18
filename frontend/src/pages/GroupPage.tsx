@@ -13,6 +13,8 @@ import {
     inviteMember,
     approveMember,
     removeMember,
+    deleteGroup,
+    transferLeader
 } from '../services/group-service';
 import type { Group, GroupSettings } from '../types';
 
@@ -210,6 +212,34 @@ function GroupPage() {
         }
     };
 
+    // 그룹 해산
+    const handleDeleteGroup = async () => {
+        if (!selectedGroup) return;
+        if (!window.confirm(`"${selectedGroup.name}" 그룹을 해산하시겠습니까? 이 작업은 되돌릴 수 없습니다.`)) return;
+        try {
+            await deleteGroup(selectedGroup._id);
+            setView('list');
+            loadList();
+            showMsg('그룹이 해산되었습니다.');
+        } catch {
+            showMsg('그룹 해산에 실패했습니다.', true);
+        }
+    };
+
+    // 그룹장 양도
+    const handleTransferLeader = async (newLeaderId: string, name: string) => {
+        if (!selectedGroup) return;
+        if (!window.confirm(`"${name}"에게 그룹장 권한을 양도하시겠습니까?`)) return;
+        try {
+            await transferLeader(selectedGroup._id, newLeaderId);
+            const updated = await getGroupById(selectedGroup._id);
+            setSelectedGroup(updated);
+            showMsg('그룹장 권한이 양도되었습니다.');
+        } catch {
+            showMsg('그룹장 양도에 실패했습니다.', true);
+        }
+    };
+
     const isLeader = (group: Group) => {
         const lid = typeof group.leaderId === 'string'
             ? group.leaderId
@@ -394,6 +424,17 @@ function GroupPage() {
                         <div className="bg-white rounded-lg shadow">
                             <h2 className="font-semibold p-4 border-b text-sm">멤버</h2>
                             <ul className="divide-y">
+                                {!selectedGroup.members.some(m => getMemberId(m.userId) === getMemberId(selectedGroup.leaderId)) && (
+                                    <li className="p-4 flex items-center justify-between">
+                                        <div>
+                                            <p className="text-sm font-medium">
+                                                {getMemberName(selectedGroup.leaderId)}
+                                                <span className="ml-2 text-xs text-purple-600">그룹장</span>
+                                            </p>
+                                            <p className="text-xs text-gray-500">활성</p>
+                                        </div>
+                                    </li>
+                                )}
                                 {selectedGroup.members.map((m) => (
                                     <li key={getMemberId(m.userId)} className="p-4 flex items-center justify-between">
                                         <div>
@@ -421,14 +462,23 @@ function GroupPage() {
                                                 </button>
                                             )}
                                             {(isLeader(selectedGroup) && getMemberId(m.userId) !== getMemberId(selectedGroup.leaderId)) ||
-                                            (getMemberId(m.userId) === currentUser?.id && !isLeader(selectedGroup)) ? (
-                                                <button
-                                                    onClick={() => handleRemoveMember(getMemberId(m.userId))}
-                                                    className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200"
-                                                >
-                                                    {getMemberId(m.userId) === currentUser?.id ? '탈퇴' : '강퇴'}
-                                                </button>
-                                            ) : null}
+                                                (getMemberId(m.userId) === currentUser?.id && !isLeader(selectedGroup)) ? (
+                                                    <button
+                                                        onClick={() => handleRemoveMember(getMemberId(m.userId))}
+                                                        className="px-2 py-1 bg-red-100 text-red-600 text-xs rounded hover:bg-red-200"
+                                                    >
+                                                        {getMemberId(m.userId) === currentUser?.id ? '탈퇴' : '강퇴'}
+                                                    </button>
+                                                ) : null}
+                                            {isLeader(selectedGroup) && m.status === 'active' &&
+                                                getMemberId(m.userId) !== getMemberId(selectedGroup.leaderId) && (
+                                                    <button
+                                                        onClick={() => handleTransferLeader(getMemberId(m.userId), getMemberName(m.userId))}
+                                                        className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded hover:bg-purple-200"
+                                                    >
+                                                        양도
+                                                    </button>
+                                                )}
                                         </div>
                                     </li>
                                 ))}
@@ -499,6 +549,17 @@ function GroupPage() {
                                         className="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 text-sm"
                                     >
                                         {settingsLoading ? '저장 중...' : '설정 저장'}
+                                    </button>
+                                </div>
+
+                                {/* 그룹 해산 */}
+                                <div className="bg-white rounded-lg shadow p-4 border border-red-100">
+                                    <h2 className="font-semibold mb-3 text-sm text-red-600">위험 구역</h2>
+                                    <button
+                                        onClick={handleDeleteGroup}
+                                        className="w-full bg-red-500 text-white py-2 rounded-lg hover:bg-red-600 text-sm"
+                                    >
+                                        그룹 해산
                                     </button>
                                 </div>
                             </>
