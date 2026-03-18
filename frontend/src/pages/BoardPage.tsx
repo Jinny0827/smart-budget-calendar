@@ -79,7 +79,7 @@ export default function BoardPage() {
 
     const canWrite = boardType === 'free' || isAdmin;
     const canManage = (post: Post) =>
-        isAdmin || post.authorId._id === currentUser.id;
+        isAdmin || (!!currentUser && post.authorId?._id === currentUser.id);
 
     return (
         <div className="min-h-screen bg-gray-100">
@@ -137,7 +137,7 @@ export default function BoardPage() {
                         <button onClick={() => setSelectedPost(null)} className="text-gray-400 hover:text-gray-600">✕</button>
                     </div>
                     <div className="text-sm text-gray-500 mb-4 flex items-center gap-2 flex-wrap">
-                        <span>{selectedPost.authorId.nickname}</span>
+                        <span>{selectedPost.authorId?.nickname ?? '(탈퇴한 회원)'}</span>
                         <span>·</span>
                         <span>{new Date(selectedPost.createdAt).toLocaleDateString()}</span>
                         <span>·</span>
@@ -213,7 +213,7 @@ export default function BoardPage() {
                                 >
                                     {post.isPinned && <span className="text-xs text-red-500 mr-2">📌</span>}
                                     <span className="flex-1 font-medium truncate">{post.title}</span>
-                                    <span className="text-xs text-gray-400 ml-4">{post.authorId.nickname}</span>
+                                    <span className="text-xs text-gray-400 ml-4">{post.authorId?.nickname ?? '(탈퇴한 회원)'}</span>
                                     <span className="text-xs text-gray-300 ml-3">{new Date(post.createdAt).toLocaleDateString()}</span>
                                     <span className="text-xs text-gray-300 ml-3">👁 {post.views}</span>
                                 </div>
