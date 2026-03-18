@@ -196,7 +196,7 @@ const DEFAULT_CATEGORIES = [
 ];
 
 // 카테고리 목록 조회 (인증된 사용자 전용, 활성만)
-export const getCategories = async (req: Request, res: Response): Promise<void> => {
+export const getCategories = async (_req: Request, res: Response): Promise<void> => {
     try {
         let categories = await Category.find({ isActive: true }).sort({ order: 1, name: 1 });
 
@@ -214,7 +214,7 @@ export const getCategories = async (req: Request, res: Response): Promise<void> 
 };
 
 // 카테고리 전체 목록 (관리자용, 비활성 포함)
-export const getAllCategories = async (req: Request, res: Response): Promise<void> => {
+export const getAllCategories = async (_req: Request, res: Response): Promise<void> => {
     try {
         const categories = await Category.find().sort({ order: 1, name: 1 });
         res.status(200).json({ success: true, data: { categories } });
