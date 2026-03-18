@@ -17,7 +17,7 @@
 | 🎌 공휴일 연동 | 공공데이터포탈 API로 한국 공휴일 자동 표시 |
 | 👥 그룹 기능 | 그룹 생성·초대·참가, 일정·지출 공유, 통합 AI 인사이트 |
 | 🔐 2단계 인증 | Google Authenticator OTP(TOTP) 기반 2FA 지원 |
-| 🛡️ 관리자 기능 | 회원·그룹 승인/거절, 관리자 대시보드 |
+| 🛡️ 관리자 기능 | 회원·그룹 승인/거절, 카테고리 관리(추가·수정·삭제·활성화), 관리자 대시보드 |
 | 💬 채팅 | 그룹 단체 채팅 및 그룹원 간 1:1 개인 채팅 |
 | 📋 게시판 | 공지사항(관리자 전용) · 자유게시판, 로그인 시 팝업 공지 |
 
@@ -58,7 +58,7 @@ smart-budget-calendar/
 ├── backend/
 │   └── src/
 │       ├── controllers/    # auth, expense, holiday, import, insight, schedule, group, admin, user, post
-│       ├── models/         # User, Schedule, Expense, InsightCache, Group, Message, Post
+│       ├── models/         # User, Schedule, Expense, InsightCache, Group, Message, Post, Category
 │       ├── routes/         # auth, schedule, expense, insight, holiday, import, group, admin, user, post, message
 │       ├── services/       # AI, 카드 임포트, 공휴일 비즈니스 로직
 │       ├── middleware/     # JWT 인증, 관리자 권한 검사
@@ -133,7 +133,7 @@ cd frontend && npm run build
 | 임포트 | `/api/import` | 카드 명세서 엑셀 파일 업로드 |
 | 공휴일 | `/api/holidays` | 한국 공휴일 목록 |
 | 그룹 | `/api/groups` | 그룹 CRUD, 초대, 참가, 멤버 관리 |
-| 관리자 | `/api/admin` | 회원·그룹 승인/거절 |
+| 관리자 | `/api/admin` | 회원·그룹 승인/거절, 카테고리 CRUD |
 | 사용자 | `/api/users` | 닉네임 변경, 비밀번호 변경 |
 | 채팅 | `/api/messages` | 그룹 채팅, 1:1 개인 채팅 메시지 조회·저장 |
 | 게시판 | `/api/posts` | 공지사항·자유게시판 CRUD, 팝업 공지 필터 |
@@ -146,9 +146,11 @@ cd frontend && npm run build
 
 **User** — 사용자 (`email, password, name, nickname, role, status, otpSecret, otpEnabled`)
 
-**Schedule** — 일정 (`업무 | 개인 | 운동 | 여행 | 식사 | 쇼핑 | 기타`)
+**Schedule** — 일정 (`title, date, endDate, category, isRecurring, recurringPattern`) — 카테고리는 Category 컬렉션 기반으로 동적 관리
 
 **Expense** — 지출/수입 (`식비 | 교통 | 쇼핑 | ... | 급여 | 부업 | ...`), `scheduleId`로 일정과 연결
+
+**Category** — 일정 카테고리 (`name, color, order, isActive`) — 관리자 백오피스에서 추가·수정·삭제·활성화
 
 **InsightCache** — AI 분석 결과 캐시 (1시간 TTL, 데이터 해시 기반 무효화)
 

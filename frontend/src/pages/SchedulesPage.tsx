@@ -14,6 +14,8 @@ import {
 } from '../services/schedule-service';
 import { getExpenses } from '../services/expense-service';
 import { getHolidays } from '../services/holiday-service';
+import { getCategories } from '../services/admin-service';
+import type { Category } from '../services/admin-service';
 import type { Schedule, Expense } from '../types';
 
 // ─── date-fns 로컬라이저 설정 ────────────────────────────────
@@ -26,13 +28,8 @@ const localizer = dateFnsLocalizer({
     locales,
 });
 
-// ─── 상수 ────────────────────────────────────────────────────
-const CATEGORIES = ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'];
-
-const CATEGORY_COLORS: Record<string, string> = {
-    식비: '#FF6384', 교통: '#36A2EB', 의료: '#FF9F40', 운동: '#4BC0C0',
-    여행: '#9966FF', 쇼핑: '#FF6B6B', 문화: '#C9CBCF', 교육: '#FFCD56', 기타: '#B0BEC5',
-};
+// ─── 기본 폴백 색상 ───────────────────────────────────────────
+const DEFAULT_COLOR = '#B0BEC5';
 
 const emptyForm = {
     title: '',
@@ -61,8 +58,15 @@ function SchedulesPage() {
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
+    const [categories, setCategories] = useState<Category[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
+
+    // 카테고리 이름 목록 / 색상 맵 (categories state 기반)
+    const CATEGORIES = categories.map((c) => c.name);
+    const CATEGORY_COLORS: Record<string, string> = Object.fromEntries(
+        categories.map((c) => [c.name, c.color])
+    );
 
     // ─── 공휴일 state ────────────────────────────────────────
     const [holidaySet, setHolidaySet] = useState<Set<string>>(new Set());
@@ -80,13 +84,15 @@ function SchedulesPage() {
     const fetchAll = async () => {
         try {
             setLoading(true);
-            const [scheduleData, expenseData, holidayData] = await Promise.all([
+            const [scheduleData, expenseData, holidayData, categoryData] = await Promise.all([
                 getSchedules(),
                 getExpenses({}),
                 getHolidays(),
+                getCategories(),
             ]);
             setSchedules(scheduleData);
             setExpenses(expenseData);
+            setCategories(categoryData);
 
             // 공휴일 set/map 구성
             const newSet = new Set<string>();
@@ -347,7 +353,7 @@ function SchedulesPage() {
                     <div className="flex flex-wrap gap-4 mb-4 text-xs text-gray-600">
                         {CATEGORIES.map((cat) => (
                             <span key={cat} className="flex items-center gap-1">
-                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] }} />
+                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] ?? DEFAULT_COLOR }} />
                                 {cat}
                             </span>
                         ))}

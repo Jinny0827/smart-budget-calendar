@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import User from '../models/User';
 import Group from '../models/Group';
+import Category from '../models/Category';
 
 // 전체 회원 목록 조회 (status 필터 가능)
 export const getUsers = async (req: Request, res: Response):Promise<void>  => {
@@ -176,6 +177,119 @@ export const rejectGroup = async (req: Request, res: Response): Promise<void> =>
         res.status(200).json({ success: true, message: `"${group.name}" 그룹 거절 및 삭제 완료` });
     } catch (error) {
         console.error('그룹 거절 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// ─── 카테고리 관리 ────────────────────────────────────────────
+
+const DEFAULT_CATEGORIES = [
+    { name: '식비',  color: '#FF6384', order: 1 },
+    { name: '교통',  color: '#36A2EB', order: 2 },
+    { name: '의료',  color: '#FF9F40', order: 3 },
+    { name: '운동',  color: '#4BC0C0', order: 4 },
+    { name: '여행',  color: '#9966FF', order: 5 },
+    { name: '쇼핑',  color: '#FF6B6B', order: 6 },
+    { name: '문화',  color: '#C9CBCF', order: 7 },
+    { name: '교육',  color: '#FFCD56', order: 8 },
+    { name: '기타',  color: '#B0BEC5', order: 9 },
+];
+
+// 카테고리 목록 조회 (인증된 사용자 전용, 활성만)
+export const getCategories = async (req: Request, res: Response): Promise<void> => {
+    try {
+        let categories = await Category.find({ isActive: true }).sort({ order: 1, name: 1 });
+
+        // DB가 비어있으면 기본 카테고리 자동 생성
+        if (categories.length === 0) {
+            await Category.insertMany(DEFAULT_CATEGORIES);
+            categories = await Category.find({ isActive: true }).sort({ order: 1, name: 1 });
+        }
+
+        res.status(200).json({ success: true, data: { categories } });
+    } catch (error) {
+        console.error('카테고리 목록 조회 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// 카테고리 전체 목록 (관리자용, 비활성 포함)
+export const getAllCategories = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const categories = await Category.find().sort({ order: 1, name: 1 });
+        res.status(200).json({ success: true, data: { categories } });
+    } catch (error) {
+        console.error('카테고리 전체 조회 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// 카테고리 추가
+export const createCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { name, color, order } = req.body;
+        if (!name?.trim()) {
+            res.status(400).json({ success: false, message: '카테고리 이름은 필수입니다' });
+            return;
+        }
+
+        const existing = await Category.findOne({ name: name.trim() });
+        if (existing) {
+            res.status(400).json({ success: false, message: '이미 존재하는 카테고리입니다' });
+            return;
+        }
+
+        const maxOrder = await Category.findOne().sort({ order: -1 }).select('order');
+        const category = await Category.create({
+            name: name.trim(),
+            color: color || '#B0BEC5',
+            order: order ?? (maxOrder ? (maxOrder as any).order + 1 : 1),
+        });
+
+        res.status(201).json({ success: true, data: { category } });
+    } catch (error) {
+        console.error('카테고리 추가 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// 카테고리 수정
+export const updateCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const { name, color, order, isActive } = req.body;
+
+        const category = await Category.findById(id);
+        if (!category) {
+            res.status(404).json({ success: false, message: '카테고리를 찾을 수 없습니다' });
+            return;
+        }
+
+        if (name !== undefined) category.name = name.trim();
+        if (color !== undefined) category.color = color;
+        if (order !== undefined) category.order = order;
+        if (isActive !== undefined) category.isActive = isActive;
+
+        await category.save();
+        res.status(200).json({ success: true, data: { category } });
+    } catch (error) {
+        console.error('카테고리 수정 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// 카테고리 삭제
+export const deleteCategory = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { id } = req.params;
+        const category = await Category.findByIdAndDelete(id);
+        if (!category) {
+            res.status(404).json({ success: false, message: '카테고리를 찾을 수 없습니다' });
+            return;
+        }
+        res.status(200).json({ success: true, message: `"${category.name}" 카테고리가 삭제되었습니다` });
+    } catch (error) {
+        console.error('카테고리 삭제 에러:', error);
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
