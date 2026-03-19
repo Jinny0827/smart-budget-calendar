@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { useChat } from '../hooks/useChat';
 import type { Group, User } from '../types';
+import {formatDistanceToNow} from "date-fns";
+import {ko} from "date-fns/locale";
 
 interface ChatPanelProps {
     onClose: () => void;
@@ -146,7 +148,14 @@ export const ChatPanel = ({ onClose, currentUser, myGroups }: ChatPanelProps) =>
                                 className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 flex items-center gap-3"
                             >
                                 <span className="text-xl">👤</span>
-                                <span className="text-sm font-medium">{name}</span>
+                                <div className="flex flex-col">
+                                    <span className="text-sm font-medium">{name}</span>
+                                    {(contact.userId as any)?.lastMessageAt && (
+                                        <span className="text-xs text-gray-400">
+                                            {formatDistanceToNow(new Date((contact.userId as any).lastMessageAt), { addSuffix: true, locale: ko })}
+                                        </span>
+                                    )}
+                                </div>
                             </button>
                         );
                     })}

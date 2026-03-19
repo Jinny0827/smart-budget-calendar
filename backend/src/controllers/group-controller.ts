@@ -52,7 +52,7 @@ export const getMyGroups = async (req: Request, res: Response): Promise<void> =>
             ]
         })
             .populate('leaderId', 'name nickname')
-            .populate('members.userId', 'name nickname');
+            .populate('members.userId', 'name nickname lastMessageAt')
 
         res.status(200).json({success: true, data: { groups }});
     } catch (error) {
@@ -68,7 +68,7 @@ export const getGroupById = async (req: Request, res: Response): Promise<void> =
 
         const group = await Group.findById(id)
             .populate('leaderId', 'name nickname email')
-            .populate('members.userId', 'name nickname email');
+            .populate('members.userId', 'name nickname email lastLoginAt')
 
         if (!group) {
             res.status(404).json({ success: false, message: '그룹을 찾을 수 없습니다' });
@@ -89,8 +89,11 @@ export const getGroupById = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        res.status(200).json({ success: true, data: { group } });
+        // 그룹 내 회원 상태 변경에 대한 예외 처리
+        const groupObj = group.toObject();
+        groupObj.members = groupObj.members.filter((m: any) => m.userId != null);
 
+        res.status(200).json({ success: true, data: { group: groupObj } });
     } catch (error) {
         console.error('그룹 상세 조회 에러:', error);
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
