@@ -14,6 +14,8 @@ export interface User {
     role: 'user' | 'admin';
     status: 'pending' | 'approved' | 'rejected';
     otpEnabled: boolean;
+    lastLoginAt?: string;
+    lastMessageAt?: string;
 }
 
 // 로그인 응답 — OTP 미사용 시 token+user, OTP 사용 시 otpRequired+tempToken

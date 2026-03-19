@@ -17,6 +17,8 @@ import {
     transferLeader
 } from '../services/group-service';
 import type { Group, GroupSettings } from '../types';
+import {formatDistanceToNow} from "date-fns";
+import {ko} from "date-fns/locale";
 
 type View = 'list' | 'detail' | 'create';
 
@@ -247,12 +249,20 @@ function GroupPage() {
         return lid === currentUser?.id;
     };
 
-    const getMemberId = (userId: any): string =>
-        typeof userId === 'object' ? userId._id : userId;
+    const getMemberId = (userId: any): string => {
+        if (userId == null) return '';
+        return typeof userId === 'object' ? userId._id : userId;
+    };
 
-    const getMemberName = (userId: any): string =>
-        typeof userId === 'object' ? (userId.nickname || userId.name) : userId;
+    const getMemberName = (userId: any): string => {
+        if (userId == null) return '(탈퇴한 회원)';
+        return typeof userId === 'object' ? (userId.nickname || userId.name) : userId;
+    };
 
+    const getMemberLastLogin = (userId: any): string | null =>
+        typeof userId === 'object' && userId?.lastLoginAt
+            ? userId.lastLoginAt
+            : null;
 
     const settingLabels: Record<keyof GroupSettings, string> = {
         shareSchedules: '일정 공유',
@@ -449,6 +459,11 @@ function GroupPage() {
                                             </p>
                                             <p className="text-xs text-gray-500">
                                                 {memberStatusLabel[m.status] || m.status}
+                                                {getMemberLastLogin(m.userId) && (
+                                                    <span className="text-xs text-gray-400">
+                                                        · 최근 접속 {formatDistanceToNow(new Date(getMemberLastLogin(m.userId)!), { addSuffix: true, locale: ko })}
+                                                    </span>
+                                                )}
                                                 {' · '}{m.method === 'invite' ? '초대' : '코드'}
                                             </p>
                                         </div>

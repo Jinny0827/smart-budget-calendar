@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Message from '../models/Message';
 import Group from '../models/Group';
+import User from "../models/User";
 
 // 메시지 전송
 export const sendMessage = async (req: Request, res: Response): Promise<void> => {
@@ -34,6 +35,9 @@ export const sendMessage = async (req: Request, res: Response): Promise<void> =>
             content,
             readBy: [senderId]
         });
+
+        // 메시지 전송 완료 후 유저 메시지 시간 업데이트
+        await User.findByIdAndUpdate(req.userId, { lastMessageAt: new Date() });
 
         await message.populate('senderId', 'nickname name');
 

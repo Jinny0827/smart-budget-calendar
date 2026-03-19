@@ -90,6 +90,9 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             return;
         }
 
+        // 로그인 시간 업데이트
+        await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+        
         // OTP 미사용 → 바로 로그인
         const token = generateToken(user._id.toString(), user.role);
         res.status(200).json({
@@ -195,6 +198,10 @@ export const verifyOtp = async (req: Request, res: Response) : Promise<void> => 
             res.status(401).json({ success: false, message: 'OTP 코드가 올바르지 않습니다' });
             return;
         }
+
+        // 로그인 시간 업데이트
+        await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+
 
         const token = generateToken(user._id.toString(), user.role);
         res.status(200).json({

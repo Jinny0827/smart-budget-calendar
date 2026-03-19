@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User';
+import Group from "../models/Group";
 
 // 닉네임 변경
 export const updateNickname = async (req: Request, res: Response): Promise<void> => {
@@ -101,6 +102,17 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
+        // 그룹 소속 시 처리
+        // 일반 멤버인 경우 그룹에서 삭제
+        await Group.updateMany(
+            { 'members.userId': req.userId },
+            { $pull: { members: { userId: req.userId } } }
+        );
+        
+        //그룹장의 경우 그룹 해산
+        await Group.deleteMany({ leaderId: req.userId });
+
+        // 회원 삭제
         await User.findByIdAndDelete(req.userId);
 
         res.status(200).json({ success: true, message: '회원탈퇴가 완료되었습니다' });

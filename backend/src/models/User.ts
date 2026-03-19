@@ -10,6 +10,8 @@ export interface IUser extends Document {
     status: 'pending' | 'approved' | 'rejected';
     otpSecret?: string;
     otpEnabled: boolean;
+    lastLoginAt: Date;
+    lastMessageAt?: Date
     createdAt: Date;
 }
 
@@ -54,6 +56,12 @@ const UserSchema = new Schema<IUser>(
         otpEnabled: {
             type: Boolean,
             default: false
+        },
+        lastLoginAt: {
+            type: Date
+        },
+        lastMessageAt: {
+            type: Date
         }
     },
     {
