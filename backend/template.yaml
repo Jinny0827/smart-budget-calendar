@@ -15,6 +15,8 @@ Globals:
         GROQ_API_KEY: !Ref GroqApiKey
         HOLIDAY_API_KEY: !Ref HolidayServiceKey
         CORS_ORIGIN: !Ref CorsOrigin
+        GMAIL_USER: !Ref GmailUser
+        GMAIL_APP_PASSWORD: !Ref GmailAppPassword
 
 Parameters:
   MongoDBUri:
@@ -26,6 +28,10 @@ Parameters:
   HolidayServiceKey:
     Type: String
   CorsOrigin:
+    Type: String
+  GmailUser:
+    Type: String
+  GmailAppPassword:
     Type: String
 
 Resources:

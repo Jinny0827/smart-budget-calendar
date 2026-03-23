@@ -5,6 +5,7 @@ import QRCode from 'qrcode';
 import User from '../models/User';
 import { generateToken, generateTempToken, verifyToken } from '../utils/jwt';
 import { logActivity } from '../utils/activity-logger';
+import { sendTempPasswordEmail } from '../services/mail-service';
 
 // 회원가입
 export const register = async (req: Request, res: Response) : Promise<void> => {
@@ -62,24 +63,8 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             return;
         }
 
-        // 계정 잠금 확인
-        if (user.lockUntil && user.lockUntil > new Date()) {
-            const minutes = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
-            res.status(429).json({ success: false, message: `계정이 잠겼습니다. ${minutes}분 후 다시 시도해주세요.` });
-            return;
-        }
-
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-            const attempts = (user.loginAttempts || 0) + 1;
-            if (attempts >= 5) {
-                await User.findByIdAndUpdate(user._id, {
-                    loginAttempts: 0,
-                    lockUntil: new Date(Date.now() + 15 * 60 * 1000)
-                });
-            } else {
-                await User.findByIdAndUpdate(user._id, { loginAttempts: attempts });
-            }
             logActivity(user._id.toString(), 'login', 'auth', undefined, undefined, 'failed');
             res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다' });
             return;
@@ -108,8 +93,7 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             return;
         }
 
-        // 로그인 성공 - 잠금 카운터 리셋 및 시간 업데이트
-        await User.findByIdAndUpdate(user._id, { loginAttempts: 0, lockUntil: null, lastLoginAt: new Date() });
+        await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
         logActivity(user._id.toString(), 'login', 'auth');
 
         // OTP 미사용 → 바로 로그인
@@ -336,6 +320,43 @@ export const disableOtp = async (req: Request, res: Response): Promise<void> => 
         res.status(200).json({ success: true, message: 'OTP가 비활성화되었습니다' });
     } catch (error) {
         console.error('OTP 비활성화 에러:', error);
+        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
+    }
+};
+
+// 임시 비밀번호 발급
+export const resetPassword = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const { email } = req.body;
+
+        if (!email) {
+            res.status(400).json({ success: false, message: '이메일을 입력해주세요' });
+            return;
+        }
+
+        const user = await User.findOne({ email });
+
+        // 유저가 없어도 동일한 응답 (이메일 존재 여부 노출 방지)
+        if (!user) {
+            res.status(200).json({ success: true, message: '이메일로 임시 비밀번호를 발송했습니다' });
+            return;
+        }
+
+        // 임시 비밀번호 생성 (영문 대소문자 + 숫자 8자리)
+        const tempPassword = Math.random().toString(36).slice(-4).toUpperCase() +
+                             Math.random().toString(36).slice(-4);
+
+        const hashed = await bcrypt.hash(tempPassword, 10);
+        await User.findByIdAndUpdate(user._id, { password: hashed });
+
+        await sendTempPasswordEmail(user.email, user.name, tempPassword);
+
+        logActivity(user._id.toString(), 'reset_password', 'auth');
+
+        res.status(200).json({ success: true, message: '이메일로 임시 비밀번호를 발송했습니다' });
+
+    } catch (error) {
+        console.error('임시 비밀번호 발급 에러:', error);
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };

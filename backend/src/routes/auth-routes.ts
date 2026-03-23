@@ -6,7 +6,8 @@ import {
     verifyOtp,
     setupOtp,
     enableOtp,
-    disableOtp
+    disableOtp,
+    resetPassword
 } from '../controllers/auth-controller';
 import { authenticationToken } from '../middleware/auth';
 import { loginLimiter, authLimiter } from "../middleware/rate-limit";
@@ -25,6 +26,9 @@ router.post('/otp/verify', authLimiter, verifyOtp);
 
 // 내정보 조회 (인증 필요)
 router.post('/me', authenticationToken, getMe);
+
+// 임시 비밀번호 발급 (인증 불필요)
+router.post('/reset-password', authLimiter, resetPassword);
 
 // OTP 설정 (이하 전부 로그인된 유저만)
 router.post('/otp/setup', authenticationToken, setupOtp);

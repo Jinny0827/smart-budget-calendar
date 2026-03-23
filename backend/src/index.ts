@@ -1,6 +1,8 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express, { Application, Request, Response } from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import mongoSanitize from 'express-mongo-sanitize';
 import { connectDB } from './config/database';
 import authRoutes from "./routes/auth-routes";
@@ -16,8 +18,6 @@ import messageRoutes from "./routes/message-routes";
 import postRoutes from "./routes/post-routes";
 import activityRouts from "./routes/activity-routs";
 import {apiLimiter} from "./middleware/rate-limit";
-
-dotenv.config();
 
 const app: Application = express();
 

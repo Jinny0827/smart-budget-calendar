@@ -18,6 +18,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/multer": "^2.0.0",
+    "@types/nodemailer": "^7.0.11",
     "aws-serverless-express": "^3.4.0",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
@@ -30,6 +31,7 @@
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.0.3",
     "multer": "^2.0.2",
+    "nodemailer": "^8.0.3",
     "qrcode": "^1.5.4",
     "rate-limit-mongo": "^2.3.2",
     "speakeasy": "^2.0.0",

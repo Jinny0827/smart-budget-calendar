@@ -10,14 +10,16 @@ const makeStore = (expireMs: number) => new MongoDBStore({
     expireTimeMs: expireMs
 });
 
-// 로그인 전용 - 5번 실패 시 15분 차단 (메모리 스토어: 빠른 브루트포스 대응)
+// 로그인 전용 - IP 기준 1분에 20번 초과 시 차단 (MongoDB store: 다중 인스턴스 공유)
 export const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 5,
+    windowMs: 60 * 1000,
+    limit: 20,
+    store: makeStore(60 * 1000),
     skipSuccessfulRequests: true,
+    keyGenerator: (req) => req.ip ?? 'unknown',
     message: {
         success: false,
-        message: '로그인 시도가 너무 많습니다. 15분 후 다시 시도해주세요.'
+        message: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.'
     },
     standardHeaders: true,
     legacyHeaders: false,

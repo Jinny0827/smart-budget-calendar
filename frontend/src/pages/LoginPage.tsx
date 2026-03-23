@@ -1,18 +1,20 @@
 import { useState} from 'react';
 import { Link } from 'react-router-dom';
-import { login, verifyOtp } from '../services/auth-service';
+import { login, verifyOtp, resetPassword } from '../services/auth-service';
 
 
 function LoginPage() {
     // const navigate = useNavigate();
 
-    const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+    const [step, setStep] = useState<'credentials' | 'otp' | 'reset'>('credentials');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [otpCode, setOtpCode] = useState('');
     const [tempToken, setTempToken] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [resetEmail, setResetEmail] = useState('');
+    const [resetSuccess, setResetSuccess] = useState(false);
 
     // 1단계: 이메일 + 비밀번호 제출
     const handleSubmit = async (e: any): Promise<void> => {
@@ -35,6 +37,21 @@ function LoginPage() {
 
         } catch (err: any) {
             setError(err.response?.data?.message || '로그인에 실패했습니다');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // 비밀번호 찾기: 임시 비밀번호 발송
+    const handleResetSubmit = async (e: React.FormEvent): Promise<void> => {
+        e.preventDefault();
+        setError('');
+        setLoading(true);
+        try {
+            await resetPassword(resetEmail);
+            setResetSuccess(true);
+        } catch (err: any) {
+            setError(err.response?.data?.message || '요청 처리 중 오류가 발생했습니다');
         } finally {
             setLoading(false);
         }
@@ -105,12 +122,76 @@ function LoginPage() {
                             </button>
                         </form>
 
-                        <p className="mt-4 text-center text-gray-600">
+                        <p className="mt-3 text-center">
+                            <button
+                                type="button"
+                                onClick={() => { setStep('reset'); setError(''); setResetSuccess(false); setResetEmail(''); }}
+                                className="text-sm text-gray-500 hover:text-gray-700 hover:underline"
+                            >
+                                비밀번호를 잊으셨나요?
+                            </button>
+                        </p>
+
+                        <p className="mt-2 text-center text-gray-600">
                             계정이 없으신가요?{' '}
                             <Link to="/register" className="text-blue-500 hover:underline">
                                 회원가입
                             </Link>
                         </p>
+                    </>
+                )}
+
+                {/* 비밀번호 찾기 */}
+                {step === 'reset' && (
+                    <>
+                        <h1 className="text-2xl font-bold mb-2 text-center">비밀번호 찾기</h1>
+                        <p className="text-gray-500 text-sm text-center mb-6">
+                            가입한 이메일로 임시 비밀번호를 발송해드립니다
+                        </p>
+
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+                                {error}
+                            </div>
+                        )}
+
+                        {resetSuccess ? (
+                            <div className="mb-4 p-4 bg-green-100 text-green-700 rounded text-center">
+                                <p className="font-semibold">임시 비밀번호가 발송되었습니다</p>
+                                <p className="text-sm mt-1">이메일을 확인해주세요. 로그인 후 비밀번호를 변경해주세요.</p>
+                            </div>
+                        ) : (
+                            <form onSubmit={handleResetSubmit}>
+                                <div className="mb-6">
+                                    <label className="block text-gray-700 mb-2">이메일</label>
+                                    <input
+                                        type="email"
+                                        value={resetEmail}
+                                        onChange={(e) => setResetEmail(e.target.value)}
+                                        className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        placeholder="가입한 이메일을 입력해주세요"
+                                        required
+                                        autoFocus
+                                    />
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                                >
+                                    {loading ? '전송 중...' : '임시 비밀번호 받기'}
+                                </button>
+                            </form>
+                        )}
+
+                        <button
+                            type="button"
+                            onClick={() => { setStep('credentials'); setError(''); }}
+                            className="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            ← 로그인으로 돌아가기
+                        </button>
                     </>
                 )}
 

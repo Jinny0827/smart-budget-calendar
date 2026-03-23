@@ -101,3 +101,8 @@ export const enableOtp = async (code: string): Promise<void> => {
 export const disableOtp = async (): Promise<void> => {
     await api.post('/auth/otp/disable');
 };
+
+// 임시 비밀번호 발급 (비밀번호 찾기)
+export const resetPassword = async (email: string): Promise<void> => {
+    await api.post('/auth/reset-password', { email });
+};
