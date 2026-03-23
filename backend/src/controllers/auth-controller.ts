@@ -62,8 +62,24 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             return;
         }
 
+        // 계정 잠금 확인
+        if (user.lockUntil && user.lockUntil > new Date()) {
+            const minutes = Math.ceil((user.lockUntil.getTime() - Date.now()) / 60000);
+            res.status(429).json({ success: false, message: `계정이 잠겼습니다. ${minutes}분 후 다시 시도해주세요.` });
+            return;
+        }
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
+            const attempts = (user.loginAttempts || 0) + 1;
+            if (attempts >= 5) {
+                await User.findByIdAndUpdate(user._id, {
+                    loginAttempts: 0,
+                    lockUntil: new Date(Date.now() + 15 * 60 * 1000)
+                });
+            } else {
+                await User.findByIdAndUpdate(user._id, { loginAttempts: attempts });
+            }
             logActivity(user._id.toString(), 'login', 'auth', undefined, undefined, 'failed');
             res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다' });
             return;
@@ -92,8 +108,8 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
             return;
         }
 
-        // 로그인 시간 업데이트
-        await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
+        // 로그인 성공 - 잠금 카운터 리셋 및 시간 업데이트
+        await User.findByIdAndUpdate(user._id, { loginAttempts: 0, lockUntil: null, lastLoginAt: new Date() });
         logActivity(user._id.toString(), 'login', 'auth');
 
         // OTP 미사용 → 바로 로그인

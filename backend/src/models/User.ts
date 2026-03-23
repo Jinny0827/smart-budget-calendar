@@ -11,7 +11,9 @@ export interface IUser extends Document {
     otpSecret?: string;
     otpEnabled: boolean;
     lastLoginAt: Date;
-    lastMessageAt?: Date
+    lastMessageAt?: Date;
+    loginAttempts: number;
+    lockUntil?: Date;
     createdAt: Date;
 }
 
@@ -61,6 +63,13 @@ const UserSchema = new Schema<IUser>(
             type: Date
         },
         lastMessageAt: {
+            type: Date
+        },
+        loginAttempts: {
+            type: Number,
+            default: 0
+        },
+        lockUntil: {
             type: Date
         }
     },

@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import MongoDBStore from 'rate-limit-mongo';
 import dotenv from 'dotenv';
+import { verifyToken } from '../utils/jwt';
 dotenv.config();
 
 const makeStore = (expireMs: number) => new MongoDBStore({
@@ -9,11 +10,10 @@ const makeStore = (expireMs: number) => new MongoDBStore({
     expireTimeMs: expireMs
 });
 
-// 로그인 전용 - 5번 실패 시 15분 차단
+// 로그인 전용 - 5번 실패 시 15분 차단 (메모리 스토어: 빠른 브루트포스 대응)
 export const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 5,
-    store: makeStore(15 * 60 * 1000),
     skipSuccessfulRequests: true,
     message: {
         success: false,
@@ -36,11 +36,23 @@ export const authLimiter = rateLimit({
     legacyHeaders: false,
 });
 
-// 일반 API 전체 - 1분에 100번
+// 일반 API 전체 - 1분에 100번 (로그인 유저는 userId 기준, 비로그인은 IP 기준)
 export const apiLimiter = rateLimit({
     windowMs: 60 * 1000,
     limit: 100,
     store: makeStore(60 * 1000),
+    keyGenerator: (req) => {
+        try {
+            const token = req.headers.authorization?.split(' ')[1];
+            if (token) {
+                const decoded = verifyToken(token) as any;
+                return decoded.userId;
+            }
+        } catch {
+            // 토큰 없거나 만료 시 IP로 폴백
+        }
+        return req.ip ?? 'unknown';
+    },
     message: {
         success: false,
         message: '요청이 너무 많습니다. 잠시 후 다시 시도해주세요.'
