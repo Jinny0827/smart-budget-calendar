@@ -20,6 +20,8 @@
 | 🛡️ 관리자 기능 | 회원·그룹 승인/거절, 카테고리 관리(추가·수정·삭제·활성화), 관리자 대시보드 |
 | 💬 채팅 | 그룹 단체 채팅 및 그룹원 간 1:1 개인 채팅 |
 | 📋 게시판 | 공지사항(관리자 전용) · 자유게시판, 로그인 시 팝업 공지 |
+| 📝 활동 로그 | 유저 행동 이력 기록 (1년 TTL 자동 만료), 성공/실패 분기 저장 |
+| 🔒 보안 강화 | Rate Limiting (IP/유저 기준), DB 기반 계정 잠금 (5회 실패 시 15분) |
 
 ---
 
@@ -36,6 +38,8 @@
 - MongoDB Atlas (Mongoose ODM)
 - JWT 인증 (jsonwebtoken + bcryptjs)
 - speakeasy + qrcode (TOTP 2단계 인증)
+- express-rate-limit + rate-limit-mongo (Rate Limiting)
+- 계정 잠금 (DB 기반 loginAttempts / lockUntil)
 
 **AI & 외부 서비스**
 - Groq Llama 3.3 70B API (소비 패턴 분석)
@@ -57,12 +61,12 @@
 smart-budget-calendar/
 ├── backend/
 │   └── src/
-│       ├── controllers/    # auth, expense, holiday, import, insight, schedule, group, admin, user, post
-│       ├── models/         # User, Schedule, Expense, InsightCache, Group, Message, Post, Category
-│       ├── routes/         # auth, schedule, expense, insight, holiday, import, group, admin, user, post, message
+│       ├── controllers/    # auth, expense, holiday, import, insight, schedule, group, admin, user, post, activity
+│       ├── models/         # User, Schedule, Expense, InsightCache, Group, Message, Post, Category, ActivityLog
+│       ├── routes/         # auth, schedule, expense, insight, holiday, import, group, admin, user, post, message, activity
 │       ├── services/       # AI, 카드 임포트, 공휴일 비즈니스 로직
-│       ├── middleware/     # JWT 인증, 관리자 권한 검사
-│       ├── utils/          # JWT 유틸
+│       ├── middleware/     # JWT 인증, 관리자 권한 검사, Rate Limiting
+│       ├── utils/          # JWT 유틸, 활동 로그 헬퍼
 │       ├── config/         # DB 연결 설정
 │       └── lambda.ts       # AWS Lambda 핸들러
 └── frontend/
@@ -134,9 +138,10 @@ cd frontend && npm run build
 | 공휴일 | `/api/holidays` | 한국 공휴일 목록 |
 | 그룹 | `/api/groups` | 그룹 CRUD, 초대, 참가, 멤버 관리 |
 | 관리자 | `/api/admin` | 회원·그룹 승인/거절, 카테고리 CRUD |
-| 사용자 | `/api/users` | 닉네임 변경, 비밀번호 변경 |
+| 사용자 | `/api/users` | 닉네임 변경, 비밀번호 변경, 회원탈퇴 |
 | 채팅 | `/api/messages` | 그룹 채팅, 1:1 개인 채팅 메시지 조회·저장 |
 | 게시판 | `/api/posts` | 공지사항·자유게시판 CRUD, 팝업 공지 필터 |
+| 활동 로그 | `/api/activity` | 내 활동 이력 조회 (최근 100건) |
 
 모든 인증이 필요한 엔드포인트는 `Authorization: Bearer <JWT>` 헤더 필요.
 
@@ -144,7 +149,9 @@ cd frontend && npm run build
 
 ## 🗃️ 데이터 모델
 
-**User** — 사용자 (`email, password, name, nickname, role, status, otpSecret, otpEnabled`)
+**User** — 사용자 (`email, password, name, nickname, role, status, otpSecret, otpEnabled, lastLoginAt, lastMessageAt, loginAttempts, lockUntil`)
+
+**ActivityLog** — 활동 로그 (`userId, action, target, targetId, status(success|failed), meta, createdAt`) — TTL 1년 자동 만료
 
 **Schedule** — 일정 (`title, date, endDate, category, isRecurring, recurringPattern`) — 카테고리는 Category 컬렉션 기반으로 동적 관리
 
@@ -189,11 +196,11 @@ sam deploy
 
 | 기능 | 설명 |
 |------|------|
-| 🚪 회원탈퇴 / 강퇴 | 본인 계정 탈퇴 및 관리자/그룹장의 그룹원 강퇴 기능 |
 | 📱 PWA 지원 | 모바일 앱처럼 설치·사용 가능하도록 PWA 적용 |
 | 🔔 알림 기능 | 초대·승인·예산 초과 등 푸시 알림 |
 | 🏠 랜딩 페이지 | `/` 루트 접속 시 서비스 소개 메인 페이지 |
 | 🎨 UI 리디자인 | Sharp Light 테마 기반 전체 UI 개선 |
+| 📊 활동 로그 대시보드 | 프론트엔드에서 내 활동 이력 조회 UI |
 
 ---
 
