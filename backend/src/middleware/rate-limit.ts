@@ -1,5 +1,7 @@
 import rateLimit from 'express-rate-limit';
-import { MongoDBStore } from 'rate-limit-mongo';
+import MongoDBStore from 'rate-limit-mongo';
+import dotenv from 'dotenv';
+dotenv.config();
 
 const makeStore = (expireMs: number) => new MongoDBStore({
     uri: process.env.MONGODB_URI!,

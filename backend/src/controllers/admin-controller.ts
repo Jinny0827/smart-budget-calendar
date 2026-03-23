@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import User from '../models/User';
 import Group from '../models/Group';
 import Category from '../models/Category';
+import { logActivity } from '../utils/activity-logger';
 
 // 전체 회원 목록 조회 (status 필터 가능)
 export const getUsers = async (req: Request, res: Response):Promise<void>  => {
@@ -60,15 +61,16 @@ export const approveUser = async (req: Request, res: Response):Promise<void>  =>
         user.status = 'approved';
         await user.save();
 
+        logActivity(req.userId!, 'admin_approve_user', 'user', user._id.toString(), { name: user.name });
         res.status(200).json({
             success: true,
             message: `${user.name}(${user.email}) 승인 완료`,
             data: { userId: user._id, status: user.status }
         });
 
-
     } catch (error) {
         console.error('회원 승인 에러:', error);
+        logActivity(req.userId!, 'admin_approve_user', 'user', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -92,6 +94,7 @@ export const rejectUser = async (req: Request, res: Response):Promise<void>  => 
         user.status = 'rejected';
         await user.save();
 
+        logActivity(req.userId!, 'admin_reject_user', 'user', user._id.toString(), { name: user.name });
         res.status(200).json({
             success: true,
             message: `${user.name}(${user.email}) 거절 완료`,
@@ -100,6 +103,7 @@ export const rejectUser = async (req: Request, res: Response):Promise<void>  => 
 
     } catch (error) {
         console.error('회원 거절 에러:', error);
+        logActivity(req.userId!, 'admin_reject_user', 'user', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -147,6 +151,7 @@ export const approveGroup = async (req: Request, res: Response): Promise<void> =
         group.status = 'active';
         await group.save();
 
+        logActivity(req.userId!, 'admin_approve_group', 'group', group._id.toString(), { name: group.name });
         res.status(200).json({
             success: true,
             message: `"${group.name}" 그룹 승인 완료`,
@@ -154,6 +159,7 @@ export const approveGroup = async (req: Request, res: Response): Promise<void> =
         });
     } catch (error) {
         console.error('그룹 승인 에러:', error);
+        logActivity(req.userId!, 'admin_approve_group', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -174,9 +180,11 @@ export const rejectGroup = async (req: Request, res: Response): Promise<void> =>
 
         await Group.findByIdAndDelete(id);
 
+        logActivity(req.userId!, 'admin_reject_group', 'group', id, { name: group.name });
         res.status(200).json({ success: true, message: `"${group.name}" 그룹 거절 및 삭제 완료` });
     } catch (error) {
         console.error('그룹 거절 에러:', error);
+        logActivity(req.userId!, 'admin_reject_group', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -246,9 +254,11 @@ export const createCategory = async (req: Request, res: Response): Promise<void>
             order: order ?? (maxOrder ? (maxOrder as any).order + 1 : 1),
         });
 
+        logActivity(req.userId!, 'admin_create_category', 'category', category._id.toString(), { name: category.name });
         res.status(201).json({ success: true, data: { category } });
     } catch (error) {
         console.error('카테고리 추가 에러:', error);
+        logActivity(req.userId!, 'admin_create_category', 'category', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -271,9 +281,11 @@ export const updateCategory = async (req: Request, res: Response): Promise<void>
         if (isActive !== undefined) category.isActive = isActive;
 
         await category.save();
+        logActivity(req.userId!, 'admin_update_category', 'category', category._id.toString(), { name: category.name });
         res.status(200).json({ success: true, data: { category } });
     } catch (error) {
         console.error('카테고리 수정 에러:', error);
+        logActivity(req.userId!, 'admin_update_category', 'category', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -287,9 +299,11 @@ export const deleteCategory = async (req: Request, res: Response): Promise<void>
             res.status(404).json({ success: false, message: '카테고리를 찾을 수 없습니다' });
             return;
         }
+        logActivity(req.userId!, 'admin_delete_category', 'category', id, { name: category.name });
         res.status(200).json({ success: true, message: `"${category.name}" 카테고리가 삭제되었습니다` });
     } catch (error) {
         console.error('카테고리 삭제 에러:', error);
+        logActivity(req.userId!, 'admin_delete_category', 'category', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };

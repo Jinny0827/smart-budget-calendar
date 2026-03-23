@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import User from '../models/User';
 import Group from "../models/Group";
+import { logActivity } from '../utils/activity-logger';
 
 // 닉네임 변경
 export const updateNickname = async (req: Request, res: Response): Promise<void> => {
@@ -24,13 +25,15 @@ export const updateNickname = async (req: Request, res: Response): Promise<void>
             return;
         }
 
-         res.status(200).json({
+        logActivity(req.userId!, 'update_nickname', 'user');
+        res.status(200).json({
              success: true,
              message: '닉네임이 변경되었습니다',
              data: { user }
          });
     } catch (error) {
         console.error('닉네임 변경 에러:', error);
+        logActivity(req.userId!, 'update_nickname', 'user', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -72,10 +75,12 @@ export const changePassword = async (req: Request, res: Response): Promise<void>
         user.password = await bcrypt.hash(newPassword, 10);
         await user.save();
 
+        logActivity(req.userId!, 'change_password', 'user');
         res.status(200).json({ success: true, message: '비밀번호가 변경되었습니다' });
 
     } catch (error) {
         console.error('비밀번호 변경 에러:', error);
+        logActivity(req.userId!, 'change_password', 'user', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };
@@ -115,9 +120,11 @@ export const deleteAccount = async (req: Request, res: Response): Promise<void> 
         // 회원 삭제
         await User.findByIdAndDelete(req.userId);
 
+        logActivity(req.userId!, 'delete_account', 'user');
         res.status(200).json({ success: true, message: '회원탈퇴가 완료되었습니다' });
     } catch (error) {
         console.error('회원탈퇴 에러:', error);
+        logActivity(req.userId!, 'delete_account', 'user', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 };

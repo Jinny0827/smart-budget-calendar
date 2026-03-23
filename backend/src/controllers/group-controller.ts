@@ -229,12 +229,14 @@ export const inviteMember = async (req: Request, res: Response): Promise<void> =
 
         await sendInviteNotification(targetUser._id.toString(), group.name);
 
+        logActivity(req.userId!, 'invite_member', 'group', group._id.toString(), { targetEmail: email });
         res.status(200).json({
             success: true,
             message: `${targetUser.name}(${email})에게 초대를 전송했습니다`
         });
     } catch (error) {
         console.error('멤버 초대 에러:', error);
+        logActivity(req.userId!, 'invite_member', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -276,12 +278,14 @@ export const respondToInvite = async (req: Request, res: Response): Promise<void
 
         await group.save();
 
+        logActivity(req.userId!, 'respond_invite', 'group', group._id.toString(), { action });
         res.status(200).json({
             success: true,
             message: action === 'accept' ? '그룹에 참여했습니다' : '초대를 거절했습니다'
         });
     } catch (error) {
         console.error('초대 응답 에러:', error);
+        logActivity(req.userId!, 'respond_invite', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -378,6 +382,7 @@ export const approveMember = async (req: Request, res: Response): Promise<void> 
 
         await group.save();
 
+        logActivity(req.userId!, 'approve_member', 'group', group._id.toString(), { action });
         res.status(200).json({
             success: true,
             message: action === 'approve' ? '가입 요청을 승인했습니다' : '가입 요청을 거절했습니다'
@@ -385,6 +390,7 @@ export const approveMember = async (req: Request, res: Response): Promise<void> 
 
     }  catch (error) {
         console.error('멤버 승인 에러:', error);
+        logActivity(req.userId!, 'approve_member', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -527,9 +533,11 @@ export const transferLeader  = async (req: Request, res: Response): Promise<void
         group.leaderId = new mongoose.Types.ObjectId(newLeaderId);
         await group.save();
 
+        logActivity(req.userId!, 'transfer_leader', 'group', group._id.toString(), { newLeaderId });
         res.status(200).json({ success: true, message: '그룹장 권한이 양도되었습니다' });
     } catch (error) {
         console.error('그룹장 양도 에러:', error);
+        logActivity(req.userId!, 'transfer_leader', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }

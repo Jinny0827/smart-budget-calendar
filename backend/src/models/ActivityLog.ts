@@ -7,7 +7,7 @@ const ActivityLogSchema = new Schema({
     targetId: { type: Schema.Types.ObjectId },
     status:   { type: String, enum: ['success', 'failed'], default: 'success' }, // 추가
     meta:     { type: Schema.Types.Mixed },
-    createdAt:{ type: Date, default: Date.now, expires: '90d' }
+    createdAt:{ type: Date, default: Date.now, expires: '365d' }
 });
 
 export default mongoose.model('ActivityLog', ActivityLogSchema);

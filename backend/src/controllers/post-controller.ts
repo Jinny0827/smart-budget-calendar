@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Post from '../models/Post';
+import { logActivity } from '../utils/activity-logger';
 
 // 목록 조회 (페이지네이션)
 export const getPosts = async (req: Request, res: Response): Promise<void> => {
@@ -66,8 +67,10 @@ export const createPost = async (req: Request, res: Response): Promise<void> => 
             showModal: boardType === 'notice' ? (showModal ?? false) : false,
         });
 
+        logActivity((req as any).userId, 'add_post', 'post', post._id.toString(), { title: post.title, boardType });
         res.status(201).json({ success: true, data: post });
     } catch (error) {
+        logActivity((req as any).userId, 'add_post', 'post', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 오류' });
     }
 }
@@ -94,8 +97,10 @@ export const updatePost = async (req: Request, res: Response): Promise<void> => 
         }
         await post.save();
 
+        logActivity((req as any).userId, 'update_post', 'post', post._id.toString(), { title: post.title });
         res.json({ success: true, data: post });
     } catch (err) {
+        logActivity((req as any).userId, 'update_post', 'post', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 오류' });
     }
 }
@@ -114,8 +119,10 @@ export const deletePost = async (req: Request, res: Response): Promise<void> => 
         }
 
         await post.deleteOne();
+        logActivity((req as any).userId, 'delete_post', 'post', post._id.toString());
         res.json({ success: true, message: '삭제 완료' });
     } catch (err) {
+        logActivity((req as any).userId, 'delete_post', 'post', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 오류' });
     }
 };
