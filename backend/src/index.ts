@@ -14,6 +14,8 @@ import groupRoutes from "./routes/group-routes";
 import userRoutes from "./routes/user-routes";
 import messageRoutes from "./routes/message-routes";
 import postRoutes from "./routes/post-routes";
+import activityRouts from "./routes/activity-routs";
+import {apiLimiter} from "./middleware/rate-limit";
 
 dotenv.config();
 
@@ -59,6 +61,7 @@ app.get('/health', (_req: Request, res: Response) => {
     res.json({ success: true, message: 'OK' });
 });
 
+app.use('/api', apiLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/schedules', scheduleRoutes);
 app.use('/api/expenses', expenseRoutes);
@@ -70,9 +73,14 @@ app.use('/api/groups', groupRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/posts', postRoutes);
+app.use('/api/activity', activityRouts);
 
+// IP 차단에 대한 설정
+// API Gateway → 실제 클라이언트 IP 추출 (X-Forwarded-For)
+app.set('trust proxy', 1);
+app.use(express.json());
 
-// [중요] 로컬 환경(development)에서만 직접 서버를 실행합니다.
+// 로컬환경에서만 서버 직접 실행
 if (process.env.NODE_ENV !== 'production') {
     const PORT = process.env.PORT || 5000;
     app.listen(PORT, () => {

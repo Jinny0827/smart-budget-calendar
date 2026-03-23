@@ -4,6 +4,7 @@ import speakeasy from 'speakeasy';
 import QRCode from 'qrcode';
 import User from '../models/User';
 import { generateToken, generateTempToken, verifyToken } from '../utils/jwt';
+import { logActivity } from '../utils/activity-logger';
 
 // 회원가입
 export const register = async (req: Request, res: Response) : Promise<void> => {
@@ -63,6 +64,7 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
 
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
+            logActivity(user._id.toString(), 'login', 'auth', undefined, undefined, 'failed');
             res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 올바르지 않습니다' });
             return;
         }
@@ -92,7 +94,8 @@ export const login = async (req: Request, res: Response) : Promise<void> => {
 
         // 로그인 시간 업데이트
         await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
-        
+        logActivity(user._id.toString(), 'login', 'auth');
+
         // OTP 미사용 → 바로 로그인
         const token = generateToken(user._id.toString(), user.role);
         res.status(200).json({
@@ -201,7 +204,7 @@ export const verifyOtp = async (req: Request, res: Response) : Promise<void> => 
 
         // 로그인 시간 업데이트
         await User.findByIdAndUpdate(user._id, { lastLoginAt: new Date() });
-
+        logActivity(user._id.toString(), 'login', 'auth');
 
         const token = generateToken(user._id.toString(), user.role);
         res.status(200).json({

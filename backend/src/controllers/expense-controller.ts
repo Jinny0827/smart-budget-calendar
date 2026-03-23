@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Expense from '../models/Expense';
 import Schedule from '../models/Schedule';
+import { logActivity } from '../utils/activity-logger';
 
 // 지출 목록 조회
 export const getExpenses = async (req: Request, res: Response): Promise<void> => {
@@ -81,6 +82,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
             );
         }
 
+        logActivity(userId, 'add_expense', 'expense', expense._id.toString(), { amount: expense.amount, category: expense.category });
         res.status(201).json({
             success: true,
             message: '지출이 생성되었습니다',
@@ -88,6 +90,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
         });
     } catch (error) {
         console.error('지출 생성 에러:', error);
+        logActivity((req as any).userId, 'add_expense', 'expense', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'
@@ -153,6 +156,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
+        logActivity(userId, 'update_expense', 'expense', expense._id.toString(), { amount: expense.amount });
         res.status(200).json({
             success: true,
             message: '지출이 수정되었습니다',
@@ -160,6 +164,7 @@ export const updateExpense = async (req: Request, res: Response): Promise<void> 
         });
     } catch (error) {
         console.error('지출 수정 에러:', error);
+        logActivity((req as any).userId, 'update_expense', 'expense', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'
@@ -191,12 +196,14 @@ export const deleteExpense = async (req: Request, res: Response): Promise<void> 
             );
         }
 
+        logActivity(userId, 'delete_expense', 'expense', expense._id.toString());
         res.status(200).json({
             success: true,
             message: '지출이 삭제되었습니다'
         });
     } catch (error) {
         console.error('지출 삭제 에러:', error);
+        logActivity((req as any).userId, 'delete_expense', 'expense', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'

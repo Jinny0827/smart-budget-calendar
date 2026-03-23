@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Schedule from '../models/Schedule';
+import { logActivity } from '../utils/activity-logger';
 
 // 일정 목록 조회
 export const getSchedules = async (req: Request, res: Response): Promise<void> => {
@@ -63,6 +64,7 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
             recurringPattern
         });
 
+        logActivity(userId, 'add_schedule', 'schedule', schedule._id.toString(), { title: schedule.title });
         res.status(201).json({
             success: true,
             message: '일정이 생성되었습니다',
@@ -70,6 +72,7 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
         });
     } catch (error) {
         console.error('일정 생성 에러:', error);
+        logActivity((req as any).userId, 'add_schedule', 'schedule', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'
@@ -128,6 +131,7 @@ export const updateSchedule = async (req: Request, res: Response): Promise<void>
             return;
         }
 
+        logActivity(userId, 'update_schedule', 'schedule', schedule._id.toString(), { title: schedule.title });
         res.status(200).json({
             success: true,
             message: '일정이 수정되었습니다',
@@ -135,6 +139,7 @@ export const updateSchedule = async (req: Request, res: Response): Promise<void>
         });
     } catch (error) {
         console.error('일정 수정 에러:', error);
+        logActivity((req as any).userId, 'update_schedule', 'schedule', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'
@@ -158,12 +163,14 @@ export const deleteSchedule = async (req: Request, res: Response): Promise<void>
             return;
         }
 
+        logActivity(userId, 'delete_schedule', 'schedule', schedule._id.toString());
         res.status(200).json({
             success: true,
             message: '일정이 삭제되었습니다'
         });
     } catch (error) {
         console.error('일정 삭제 에러:', error);
+        logActivity((req as any).userId, 'delete_schedule', 'schedule', undefined, undefined, 'failed');
         res.status(500).json({
             success: false,
             message: '서버 에러가 발생했습니다'

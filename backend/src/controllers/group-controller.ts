@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Group from '../models/Group';
 import User from '../models/User';
 import { sendInviteNotification } from '../services/notification-service';
+import { logActivity } from '../utils/activity-logger';
 
 
 // 그룹 생성 요청
@@ -28,6 +29,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
             // status: 'pending', inviteCode는 pre-save 훅에서 자동 생성
         });
 
+        logActivity(req.userId!, 'create_group', 'group', group._id.toString(), { name: group.name });
         res.status(201).json({
             success: true,
             message: '그룹 생성 요청이 완료되었습니다. 관리자 승인 후 사용 가능합니다.',
@@ -36,6 +38,7 @@ export const createGroup = async (req: Request, res: Response): Promise<void> =>
 
     } catch (error) {
         console.error('그룹 생성 에러:', error);
+        logActivity(req.userId!, 'create_group', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -327,6 +330,7 @@ export const joinByCode = async (req: Request, res: Response): Promise<void> => 
 
         await group.save();
 
+        logActivity(req.userId!, 'join_group', 'group', group._id.toString(), { name: group.name });
         res.status(200).json({
             success: true,
             message: `"${group.name}" 그룹에 가입 요청을 전송했습니다. 그룹장 승인 후 참여됩니다.`
@@ -334,6 +338,7 @@ export const joinByCode = async (req: Request, res: Response): Promise<void> => 
 
     } catch (error) {
         console.error('코드 가입 에러:', error);
+        logActivity(req.userId!, 'join_group', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
@@ -422,9 +427,12 @@ export const removeMember = async (req: Request, res: Response): Promise<void> =
        group.members.splice(memberIndex, 1);
        await group.save();
 
+       const action = isSelf ? 'leave_group' : 'remove_member';
+       logActivity(req.userId!, action, 'group', group._id.toString());
        res.status(200).json({ success: true, message: '멤버를 그룹에서 제거했습니다' });
    }  catch (error) {
        console.error('멤버 추방 에러:', error);
+       logActivity(req.userId!, 'remove_member', 'group', undefined, undefined, 'failed');
        res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
    }
 }
@@ -468,9 +476,11 @@ export const deleteGroup = async (req: Request, res: Response): Promise<void> =>
 
         await Group.findByIdAndDelete(id);
 
+        logActivity(req.userId!, 'delete_group', 'group', id);
         res.status(200).json({ success: true, message: '그룹이 해산되었습니다' });
     } catch (error) {
         console.error('그룹 해산 에러:', error);
+        logActivity(req.userId!, 'delete_group', 'group', undefined, undefined, 'failed');
         res.status(500).json({ success: false, message: '서버 에러가 발생했습니다' });
     }
 }
