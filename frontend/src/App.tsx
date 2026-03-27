@@ -13,6 +13,7 @@ import AdminPage from './pages/AdminPage';
 import GroupPage from './pages/GroupPage';
 import BoardPage from './pages/BoardPage';
 import LandingPage from './pages/LandingPage';
+import FootMeasurePage from './pages/FootMeasurePage';
 
 import { ChatButton } from './components/ChatButton';
 import { ChatPanel } from './components/ChatPanel';
@@ -142,6 +143,9 @@ function App() {
 
                 {/* 게시판 */}
                 <Route path="/board" element={<PrivateRoute><BoardPage /></PrivateRoute>} />
+
+                {/* 발 측정 */}
+                <Route path="/foot-measure" element={<FootMeasurePage />} />
             </Routes>
 
             {isAuthenticated() && currentUser && (
