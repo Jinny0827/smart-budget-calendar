@@ -68,9 +68,10 @@ export default function FootMeasurePage() {
   const [streaming,     setStreaming]     = useState(false);
   const [paperDetected, setPaperDetected] = useState(false);
   const [footDetected,  setFootDetected]  = useState(false);
-  const [topResult,     setTopResult]     = useState<TopResult | null>(null);
-  const [sideResult,    setSideResult]    = useState<SideResult | null>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [topResult,      setTopResult]      = useState<TopResult | null>(null);
+  const [sideResult,     setSideResult]     = useState<SideResult | null>(null);
+  const [capturedImage,  setCapturedImage]  = useState<string | null>(null);
+  const [topCaptured,    setTopCaptured]    = useState<string | null>(null); // 위에서 찍은 원본
   const [error,         setError]         = useState<string | null>(null);
   const [loading,       setLoading]       = useState(false);
 
@@ -243,6 +244,7 @@ export default function FootMeasurePage() {
 
       if (currentStep === 'top_capture') {
         setTopResult(data);
+        setTopCaptured(imageDataUrl);  // 위에서 찍은 사진 별도 보관
         setStep('top_result');
       } else {
         setSideResult(data);
@@ -492,14 +494,29 @@ export default function FootMeasurePage() {
       {/* ── 최종 결과 화면 ── */}
       {step === 'final_result' && topResult && sideResult && (
         <div style={{ padding: 16 }}>
-          {/* 옆면 결과 이미지 */}
-          <img
-            src={sideResult.result_image
-              ? `data:image/jpeg;base64,${sideResult.result_image}`
-              : (capturedImage ?? '')}
-            alt="아치 측정 결과"
-            style={{ width: '100%', borderRadius: 8 }}
-          />
+          {/* 두 장 사진 나란히 */}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: '#888', fontSize: 11, margin: '0 0 4px', textAlign: 'center' }}>위에서 — 발 길이/발볼</p>
+              <img
+                src={topResult.result_image
+                  ? `data:image/jpeg;base64,${topResult.result_image}`
+                  : (topCaptured ?? '')}
+                alt="위에서 측정"
+                style={{ width: '100%', borderRadius: 6, display: 'block' }}
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <p style={{ color: '#888', fontSize: 11, margin: '0 0 4px', textAlign: 'center' }}>옆에서 — 아치</p>
+              <img
+                src={sideResult.result_image
+                  ? `data:image/jpeg;base64,${sideResult.result_image}`
+                  : (capturedImage ?? '')}
+                alt="아치 측정"
+                style={{ width: '100%', borderRadius: 6, display: 'block' }}
+              />
+            </div>
+          </div>
 
           {/* 측정 요약 카드 */}
           <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
