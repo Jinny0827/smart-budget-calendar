@@ -239,7 +239,7 @@ function AdminPage() {
                 )}
 
                 {/* 탭 */}
-                <div className="flex border-b mb-6">
+                <div className="flex border-b mb-6 overflow-x-auto whitespace-nowrap">
                     {([
                         { key: 'users',      label: '사용자 관리' },
                         { key: 'groups',     label: '그룹 관리' },
@@ -248,7 +248,7 @@ function AdminPage() {
                         <button
                             key={key}
                             onClick={() => { setTab(key); setMsg(''); setEditingCat(null); setCatForm({ name: '', color: '#B0BEC5' }); }}
-                            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+                            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
                                 tab === key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                         >
@@ -378,9 +378,9 @@ function AdminPage() {
                             <h3 className="font-medium text-sm mb-3">
                                 {editingCat ? `"${editingCat.name}" 수정` : '카테고리 추가'}
                             </h3>
-                            <div className="flex gap-2 items-center">
+                            <div className="flex flex-wrap gap-2 items-center">
                                 <input
-                                    className="flex-1 border rounded px-3 py-2 text-sm"
+                                    className="flex-1 min-w-0 border rounded px-3 py-2 text-sm"
                                     placeholder="카테고리 이름"
                                     value={catForm.name}
                                     onChange={(e) => setCatForm({ ...catForm, name: e.target.value })}
