@@ -4,6 +4,7 @@ import Group from '../models/Group';
 import User from '../models/User';
 import { sendInviteNotification } from '../services/notification-service';
 import { logActivity } from '../utils/activity-logger';
+import {createNotification} from "./notification-controller";
 
 
 // 그룹 생성 요청
@@ -226,7 +227,14 @@ export const inviteMember = async (req: Request, res: Response): Promise<void> =
         });
 
         await group.save();
-
+        
+        // 초대받은 멤버에게 알림 처리
+        await createNotification({
+            userId: targetUser._id.toString(),
+            type: 'invite',
+            message: `"${group.name}" 그룹에 초대되었습니다.`,
+            link: '/groups',
+        });
         await sendInviteNotification(targetUser._id.toString(), group.name);
 
         logActivity(req.userId!, 'invite_member', 'group', group._id.toString(), { targetEmail: email });
@@ -334,6 +342,14 @@ export const joinByCode = async (req: Request, res: Response): Promise<void> => 
 
         await group.save();
 
+        // 그룹장에게 참가 요청 알림
+        await createNotification({
+            userId: group.leaderId.toString(),
+            type: 'member_requested',
+            message: `"${group.name}" 그룹에 새로운 참가 요청이 있습니다.`,
+            link: '/groups',
+        });
+
         logActivity(req.userId!, 'join_group', 'group', group._id.toString(), { name: group.name });
         res.status(200).json({
             success: true,
@@ -381,6 +397,18 @@ export const approveMember = async (req: Request, res: Response): Promise<void> 
         if (action === 'approve') memberEntry.joinedAt = new Date();
 
         await group.save();
+
+        // 요청한 멤버에게 승인/거절 알림
+        await createNotification({
+            userId: userId,
+            type: action === 'approve' ? 'group_approved' : 'group_rejected',
+            message: action === 'approve'
+                ? `"${group.name}" 그룹 참가가 승인되었습니다.`
+                : `"${group.name}" 그룹 참가가 거절되었습니다.`,
+            link: '/groups',
+        });
+
+
 
         logActivity(req.userId!, 'approve_member', 'group', group._id.toString(), { action });
         res.status(200).json({

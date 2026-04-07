@@ -1,10 +1,10 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
-import express, { Application, Request, Response } from 'express';
+import express, {Application, Request, Response} from 'express';
 import cors from 'cors';
 import mongoSanitize from 'express-mongo-sanitize';
-import { connectDB } from './config/database';
+import {connectDB} from './config/database';
 import authRoutes from "./routes/auth-routes";
 import scheduleRoutes from "./routes/schedule-routes";
 import expenseRoutes from "./routes/expense-routes";
@@ -16,8 +16,11 @@ import groupRoutes from "./routes/group-routes";
 import userRoutes from "./routes/user-routes";
 import messageRoutes from "./routes/message-routes";
 import postRoutes from "./routes/post-routes";
-import activityRouts from "./routes/activity-routs";
+import activityRouts from "./routes/activity-routes";
 import {apiLimiter} from "./middleware/rate-limit";
+import notificationRoutes from "./routes/notification-routes";
+
+
 
 const app: Application = express();
 
@@ -74,6 +77,7 @@ app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/activity', activityRouts);
+app.use('/api/notifications', notificationRoutes);
 
 // IP 차단에 대한 설정
 // API Gateway → 실제 클라이언트 IP 추출 (X-Forwarded-For)

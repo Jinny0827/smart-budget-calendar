@@ -19,6 +19,7 @@ import { ChatButton } from './components/ChatButton';
 import { ChatPanel } from './components/ChatPanel';
 import type { User, Group } from './types';
 import {NoticeModal} from "./components/NoticeModal.tsx";
+import FinancePage from "./pages/Financepage.tsx";
 
 // 인증이 필요한 라우트 보호
 function PrivateRoute({ children }: { children: React.ReactNode }) {
@@ -146,6 +147,9 @@ function App() {
 
                 {/* 발 측정 */}
                 <Route path="/foot-measure" element={<FootMeasurePage />} />
+
+                {/* 재무재표 분석 */}
+                <Route path="/finance" element={<PrivateRoute><FinancePage /></PrivateRoute>} />
             </Routes>
 
             {isAuthenticated() && currentUser && (

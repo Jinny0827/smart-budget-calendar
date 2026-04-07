@@ -3,6 +3,7 @@ import User from '../models/User';
 import Group from '../models/Group';
 import Category from '../models/Category';
 import { logActivity } from '../utils/activity-logger';
+import {createNotification} from "./notification-controller";
 
 // 전체 회원 목록 조회 (status 필터 가능)
 export const getUsers = async (req: Request, res: Response):Promise<void>  => {
@@ -61,6 +62,15 @@ export const approveUser = async (req: Request, res: Response):Promise<void>  =>
         user.status = 'approved';
         await user.save();
 
+        // 승인 유저에게 알림
+        await createNotification({
+            userId: user._id.toString(),
+            type: 'user_approved',
+            message: '회원가입이 승인되었습니다. 서비스를 이용할 수 있습니다.',
+            link: '/dashboard',
+        });
+
+
         logActivity(req.userId!, 'admin_approve_user', 'user', user._id.toString(), { name: user.name });
         res.status(200).json({
             success: true,
@@ -93,6 +103,12 @@ export const rejectUser = async (req: Request, res: Response):Promise<void>  => 
 
         user.status = 'rejected';
         await user.save();
+
+        await createNotification({
+            userId: user._id.toString(),
+            type: 'user_rejected',
+            message: '회원가입 요청이 거절되었습니다.',
+        });
 
         logActivity(req.userId!, 'admin_reject_user', 'user', user._id.toString(), { name: user.name });
         res.status(200).json({
@@ -151,6 +167,13 @@ export const approveGroup = async (req: Request, res: Response): Promise<void> =
         group.status = 'active';
         await group.save();
 
+        await createNotification({
+            userId: group.leaderId.toString(),
+            type: 'group_approved',
+            message: `"${group.name}" 그룹이 승인되었습니다.`,
+            link: '/groups',
+        });
+
         logActivity(req.userId!, 'admin_approve_group', 'group', group._id.toString(), { name: group.name });
         res.status(200).json({
             success: true,
@@ -179,6 +202,12 @@ export const rejectGroup = async (req: Request, res: Response): Promise<void> =>
         }
 
         await Group.findByIdAndDelete(id);
+
+        await createNotification({
+            userId: group.leaderId.toString(),
+            type: 'group_rejected',
+            message: `"${group.name}" 그룹 생성 요청이 거절되었습니다.`,
+        });
 
         logActivity(req.userId!, 'admin_reject_group', 'group', id, { name: group.name });
         res.status(200).json({ success: true, message: `"${group.name}" 그룹 거절 및 삭제 완료` });
