@@ -70,16 +70,43 @@ interface Dividend {
     dividend_yield?: string;
 }
 
+interface SectorNews {
+    title: string;
+    pubDate: string;
+    description: string;
+}
+
+interface Insight {
+    summary: string;
+    profitability: string;
+    stability: string;
+    growth: string;
+    sector_trend: string;
+    risk: string;
+    positive: string;
+    score: {
+        total: number;
+        profitability: number;
+        stability: number;
+        growth: number;
+        cashflow: number;
+    };
+}
+
 interface AnalyzeResult {
     company_info: CompanyInfo;
     financial: Record<string, YearFinancial>;
     disclosures: Disclosure[];
     shareholders: { shareholders: Shareholder[] };
     dividend: Dividend[];
+    insight?: Insight;
+    sector_news?: SectorNews[];
 }
 
+
+
 type Step = 'search' | 'loading' | 'result';
-type TabKey = 'financial' | 'disclosure' | 'shareholder' | 'dividend';
+type TabKey = 'financial' | 'disclosure' | 'shareholder' | 'dividend' | 'insight';
 
 // ── 유틸 ──────────────────────────────────────────────────
 function formatDate(dt: string | null) {
@@ -100,7 +127,7 @@ function getColor(raw?: number) {
 export default function FinancePage() {
     const [step,   setStep]   = useState<Step>('search');
     const [query,  setQuery]  = useState('');
-    const [year,   setYear]   = useState('2024');
+    const [year,   setYear]   = useState(String(new Date().getFullYear() - 1));
     const [result, setResult] = useState<AnalyzeResult | null>(null);
     const [error,  setError]  = useState<string | null>(null);
     const [tab,    setTab]    = useState<TabKey>('financial');
@@ -175,7 +202,8 @@ export default function FinancePage() {
                                 borderRadius: 8, fontSize: 14, cursor: 'pointer',
                             }}
                         >
-                            {['2024', '2023', '2022', '2021', '2020'].map((y) => (
+                            {Array.from({length: 5}, (_, i) => String(new Date().getFullYear() - 1 - i))
+                                .map((y) => (
                                 <option key={y} value={y}>{y}년</option>
                             ))}
                         </select>
@@ -241,6 +269,7 @@ export default function FinancePage() {
                             { key: 'disclosure',  label: '공시' },
                             { key: 'shareholder', label: '주주' },
                             { key: 'dividend',    label: '배당' },
+                            { key: 'insight', label: '인사이트' },
                         ] as const).map(({ key, label }) => (
                             <button
                                 key={key}
@@ -264,6 +293,7 @@ export default function FinancePage() {
                         {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
                         {tab === 'shareholder' && <ShareholderTab data={result.shareholders.shareholders} />}
                         {tab === 'dividend'    && <DividendTab data={result.dividend} />}
+                        {tab === 'insight' && <InsightTab insight={result.insight} news={result.sector_news} />}
                     </div>
 
                     <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937' }}>
@@ -562,6 +592,95 @@ function DividendTab({ data }: { data: Dividend[] }) {
                     <FinRow label="주당 배당금" value={d.dividend_per_share ? `${Number(d.dividend_per_share.replace(/,/g,'')).toLocaleString()}원` : '-'} />
                 </SectionCard>
             ))}
+        </div>
+    );
+}
+
+function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] }) {
+    if (!insight || (insight as any).error) return <Empty text="인사이트를 불러올 수 없습니다" />;
+
+    const { score } = insight;
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {/* 적합도 점수 */}
+            <div style={{ padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 14 }}>종합 점수</h4>
+                    <span style={{ color: '#fff', fontSize: 28, fontWeight: 'bold' }}>{score.total}점</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <ScoreBar label="수익성" value={score.profitability} max={25} color="#00cc44" />
+                    <ScoreBar label="안정성" value={score.stability}    max={25} color="#60a5fa" />
+                    <ScoreBar label="성장성" value={score.growth}       max={25} color="#f59e0b" />
+                    <ScoreBar label="현금흐름" value={score.cashflow}   max={25} color="#a78bfa" />
+                </div>
+            </div>
+
+            {/* 종합 요약 */}
+            <SectionCard title="한줄 요약" color="#00cc44">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.summary}</p>
+            </SectionCard>
+
+            {/* 섹터 트렌드 */}
+            <SectionCard title="지금 섹터 분위기" color="#f59e0b">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.sector_trend}</p>
+            </SectionCard>
+
+            {/* 분석 카드들 */}
+            <SectionCard title="수익성" color="#00cc44">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.profitability}</p>
+            </SectionCard>
+
+            <SectionCard title="안정성" color="#60a5fa">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.stability}</p>
+            </SectionCard>
+
+            <SectionCard title="성장성" color="#f59e0b">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.growth}</p>
+            </SectionCard>
+
+            <SectionCard title="긍정 포인트" color="#00cc44">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.positive}</p>
+            </SectionCard>
+
+            <SectionCard title="리스크" color="#f87171">
+                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.risk}</p>
+            </SectionCard>
+
+            {/* 섹터 뉴스 */}
+            {news && news.length > 0 && (
+                <SectionCard title="관련 뉴스" color="#888">
+                    {news.map((n, i) => (
+                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #1f2937' }}>
+                            <p style={{ color: '#e2e8f0', fontSize: 13, margin: '0 0 4px' }}>{n.title}</p>
+                            <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>{n.pubDate.slice(0, 16)}</p>
+                        </div>
+                    ))}
+                </SectionCard>
+            )}
+
+            {/* 면책 */}
+            <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'center', margin: 0 }}>
+                본 인사이트는 AI 생성 참고용입니다. 투자 결정의 책임은 본인에게 있습니다.
+            </p>
+        </div>
+    );
+}
+
+// 점수 바 컴포넌트
+function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+    const pct = Math.round((value / max) * 100);
+    return (
+        <div style={{ background: '#111827', borderRadius: 8, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ color: '#9ca3af', fontSize: 12 }}>{label}</span>
+                <span style={{ color, fontSize: 12, fontWeight: 'bold' }}>{value}/{max}</span>
+            </div>
+            <div style={{ background: '#1f2937', borderRadius: 4, height: 6 }}>
+                <div style={{ background: color, width: `${pct}%`, height: '100%', borderRadius: 4, transition: 'width 0.3s' }} />
+            </div>
         </div>
     );
 }

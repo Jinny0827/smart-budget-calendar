@@ -29,3 +29,4 @@ Thumbs.db
 *.swo
 /backend/samconfig.toml
 /backend/.aws-sam/
+deploy.ps1
