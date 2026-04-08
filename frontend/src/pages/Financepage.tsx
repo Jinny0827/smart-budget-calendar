@@ -76,12 +76,29 @@ interface SectorNews {
     description: string;
 }
 
+interface StockData {
+    current_price: number;
+    prev_close: number;
+    change_pct: number;
+    intraday_high: number | null;
+    intraday_low: number | null;
+    high_5d: number;
+    low_5d: number;
+    week52_high: number | null;
+    week52_low: number | null;
+    trend_5d: '상승' | '하락' | '횡보';
+    volume_trend: '증가' | '감소' | '보합';
+    market_cap_억원: number | null;
+    ticker?: string;
+}
+
 interface Insight {
     summary: string;
     profitability: string;
     stability: string;
     growth: string;
     sector_trend: string;
+    price_analysis?: string;
     risk: string;
     positive: string;
     score: {
@@ -99,6 +116,7 @@ interface AnalyzeResult {
     disclosures: Disclosure[];
     shareholders: { shareholders: Shareholder[] };
     dividend: Dividend[];
+    stock_data?: StockData;
     insight?: Insight;
     sector_news?: SectorNews[];
 }
@@ -106,7 +124,7 @@ interface AnalyzeResult {
 
 
 type Step = 'search' | 'loading' | 'result';
-type TabKey = 'financial' | 'disclosure' | 'shareholder' | 'dividend' | 'insight';
+type TabKey = 'financial' | 'stock' | 'disclosure' | 'shareholder' | 'dividend' | 'insight';
 
 // ── 유틸 ──────────────────────────────────────────────────
 function formatDate(dt: string | null) {
@@ -263,23 +281,25 @@ export default function FinancePage() {
                     <CompanyCard info={result.company_info} />
 
                     {/* 탭 메뉴 */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', padding: '0 16px' }}>
+                    <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', overflowX: 'auto', scrollbarWidth: 'none' }}>
                         {([
                             { key: 'financial',   label: '재무제표' },
+                            { key: 'stock',       label: '📈 주가' },
                             { key: 'disclosure',  label: '공시' },
                             { key: 'shareholder', label: '주주' },
                             { key: 'dividend',    label: '배당' },
-                            { key: 'insight', label: '인사이트' },
+                            { key: 'insight',     label: '인사이트' },
                         ] as const).map(({ key, label }) => (
                             <button
                                 key={key}
                                 onClick={() => setTab(key)}
                                 style={{
-                                    flex: 1, padding: '12px 0', background: 'none', border: 'none',
+                                    flexShrink: 0, padding: '12px 14px', background: 'none', border: 'none',
                                     color: tab === key ? '#60a5fa' : '#6b7280',
                                     borderBottom: tab === key ? '2px solid #60a5fa' : '2px solid transparent',
-                                    fontSize: 13, cursor: 'pointer',
+                                    fontSize: 12, cursor: 'pointer',
                                     fontWeight: tab === key ? 'bold' : 'normal',
+                                    whiteSpace: 'nowrap',
                                 }}
                             >
                                 {label}
@@ -290,10 +310,11 @@ export default function FinancePage() {
                     {/* 탭 컨텐츠 */}
                     <div style={{ padding: 16, flex: 1 }}>
                         {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
+                        {tab === 'stock'       && <StockTab data={result.stock_data} />}
                         {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
                         {tab === 'shareholder' && <ShareholderTab data={result.shareholders.shareholders} />}
                         {tab === 'dividend'    && <DividendTab data={result.dividend} />}
-                        {tab === 'insight' && <InsightTab insight={result.insight} news={result.sector_news} />}
+                        {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
                     </div>
 
                     <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937' }}>
@@ -492,6 +513,87 @@ function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; y
     return <canvas ref={canvasRef} style={{ width: '100%' }} />;
 }
 
+// ── 주가 탭 ───────────────────────────────────────────────
+function StockTab({ data }: { data?: StockData }) {
+    if (!data) return <Empty text="주가 데이터를 불러올 수 없습니다" />;
+
+    const changeColor = data.change_pct >= 0 ? '#00cc44' : '#f87171';
+    const changeSign  = data.change_pct >= 0 ? '+' : '';
+    const trendColor  = data.trend_5d === '상승' ? '#00cc44' : data.trend_5d === '하락' ? '#f87171' : '#f59e0b';
+    const volColor    = data.volume_trend === '증가' ? '#00cc44' : data.volume_trend === '감소' ? '#f87171' : '#f59e0b';
+
+    return (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+            {/* 현재가 카드 */}
+            <div style={{ padding: 20, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f', textAlign: 'center' }}>
+                {data.ticker && (
+                    <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 4px' }}>{data.ticker}</p>
+                )}
+                <p style={{ color: '#fff', fontSize: 32, fontWeight: 'bold', margin: '0 0 4px' }}>
+                    {data.current_price.toLocaleString()}
+                </p>
+                <p style={{ color: changeColor, fontSize: 18, fontWeight: 'bold', margin: 0 }}>
+                    {changeSign}{data.change_pct}%
+                </p>
+                <p style={{ color: '#6b7280', fontSize: 12, margin: '4px 0 0' }}>
+                    전일 {data.prev_close.toLocaleString()}
+                </p>
+            </div>
+
+            {/* 오늘 장중 */}
+            <SectionCard title="오늘 장중" color="#60a5fa">
+                <FinRow label="고가" value={data.intraday_high?.toLocaleString() ?? '-'} color="#f87171" />
+                <FinRow label="저가" value={data.intraday_low?.toLocaleString()  ?? '-'} color="#00cc44" />
+            </SectionCard>
+
+            {/* 5일 동향 */}
+            <SectionCard title="최근 5거래일 (15분봉)" color="#f59e0b">
+                <FinRow label="5일 고가"   value={data.high_5d.toLocaleString()} color="#f87171" />
+                <FinRow label="5일 저가"   value={data.low_5d.toLocaleString()}  color="#00cc44" />
+                <FinRow label="5일 추세"   value={data.trend_5d}   color={trendColor} />
+                <FinRow label="거래량 추세" value={data.volume_trend} color={volColor} />
+            </SectionCard>
+
+            {/* 52주 범위 */}
+            <SectionCard title="52주 범위" color="#a78bfa">
+                <FinRow label="52주 고가" value={data.week52_high?.toLocaleString() ?? '-'} color="#f87171" />
+                <FinRow label="52주 저가" value={data.week52_low?.toLocaleString()  ?? '-'} color="#00cc44" />
+                {data.week52_high && data.week52_low && (
+                    <div style={{ marginTop: 12 }}>
+                        <div style={{ background: '#1f2937', borderRadius: 4, height: 6, position: 'relative' }}>
+                            <div style={{
+                                position: 'absolute',
+                                left: `${((data.current_price - data.week52_low) / (data.week52_high - data.week52_low)) * 100}%`,
+                                top: '50%', transform: 'translate(-50%, -50%)',
+                                width: 12, height: 12, borderRadius: '50%',
+                                background: '#a78bfa', border: '2px solid #fff',
+                            }} />
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
+                            <span style={{ color: '#6b7280', fontSize: 11 }}>{data.week52_low.toLocaleString()}</span>
+                            <span style={{ color: '#6b7280', fontSize: 11 }}>{data.week52_high.toLocaleString()}</span>
+                        </div>
+                    </div>
+                )}
+            </SectionCard>
+
+            {/* 시가총액 */}
+            {data.market_cap_억원 && (
+                <SectionCard title="시가총액" color="#888">
+                    <p style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 'bold', margin: 0, textAlign: 'center' }}>
+                        {data.market_cap_억원.toLocaleString()}억원
+                    </p>
+                </SectionCard>
+            )}
+
+            <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'center', margin: 0 }}>
+                15분봉 데이터 · 실시간이 아닐 수 있습니다
+            </p>
+        </div>
+    );
+}
+
 // ── 공시 탭 ───────────────────────────────────────────────
 function DisclosureTab({ data }: { data: Disclosure[] }) {
     if (!data.length) return <Empty text="최근 1년간 주요 공시가 없습니다" />;
@@ -644,6 +746,12 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
             <SectionCard title="긍정 포인트" color="#00cc44">
                 <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.positive}</p>
             </SectionCard>
+
+            {insight.price_analysis && (
+                <SectionCard title="📈 주가 흐름 분석" color="#a78bfa">
+                    <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.price_analysis}</p>
+                </SectionCard>
+            )}
 
             <SectionCard title="리스크" color="#f87171">
                 <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.risk}</p>
