@@ -8,17 +8,28 @@ const API_BASE = import.meta.env.VITE_FINANCE_API_URL
 // ── 타입 ──────────────────────────────────────────────────
 interface CompanyInfo {
     corp_name: string;
-    corp_code: string;
-    stock_code: string;
-    ceo_nm: string;
-    induty_code: string;
-    est_dt: string;
-    listing_dt: string | null;
+    // 한국 기업 필드
+    corp_code?: string;
+    stock_code?: string;
+    ceo_nm?: string;
+    induty_code?: string;
+    est_dt?: string;
+    listing_dt?: string | null;
+    // 미국 기업 필드
+    market?: string;
+    cik?: string;
+    ticker?: string;
+    exchange?: string;
+    sic?: string;
+    sic_description?: string;
+    state?: string;
+    fiscal_year_end?: string;
 }
 
 interface AmountData {
     raw: number;
-    억원: number;
+    억원?: number;
+    백만달러?: number;
     표시: string;
 }
 
@@ -141,6 +152,22 @@ function getColor(raw?: number) {
     return raw >= 0 ? '#00cc44' : '#f87171';
 }
 
+// 한국 (억원) / 미국 (백만달러) 자동 폴백
+function getChartValue(amount?: AmountData): number {
+    if (!amount) {
+        return 0;
+    }
+
+    return amount.억원 ?? amount.백만달러 ?? 0;
+}
+
+function getChartUnit(data: Record<string, YearFinancial>): string {
+    const first = Object.values(data)[0];
+    const rev = first?.income_statement?.revenue;
+    if (rev && rev.백만달러 !== undefined) return '$M';
+    return '억';
+}
+
 // ── 메인 컴포넌트 ──────────────────────────────────────────
 export default function FinancePage() {
     const [step,   setStep]   = useState<Step>('search');
@@ -149,15 +176,47 @@ export default function FinancePage() {
     const [result, setResult] = useState<AnalyzeResult | null>(null);
     const [error,  setError]  = useState<string | null>(null);
     const [tab,    setTab]    = useState<TabKey>('financial');
+    const [market, setMarket] = useState<'kr' | 'us'>('kr');
+    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const acCache = useRef<Record<string, string[]>>({});
+
+    useEffect(() => {
+        if(query.trim().length < 2) {
+            setSuggestions([]);
+            return;
+        }
+
+        const cacheKey = `${market}:${query.trim()}`
+
+        // 캐시 히트
+        if(acCache.current[cacheKey]) {
+            setSuggestions(acCache.current[cacheKey]);
+            return;
+        }
+
+        const timer = setTimeout(async () => {
+            try {
+                const res  = await fetch(`${API_BASE}/autocomplete?query=${encodeURIComponent(query.trim())}&market=${market}`);
+                const data = await res.json();
+                acCache.current[cacheKey] = data;
+                setSuggestions(data);
+            } catch {
+                setSuggestions([]);
+            }
+        }, 300);
+
+        return () => clearTimeout(timer);
+    }, [query, market]);
 
     // ── API 호출 ──
     const handleSearch = async () => {
         if (!query.trim()) return;
+        setSuggestions([]);
         setError(null);
         setStep('loading');
 
         try {
-            const res  = await fetch(`${API_BASE}/analyze?query=${encodeURIComponent(query)}&year=${year}`);
+            const res  = await fetch(`${API_BASE}/analyze?query=${encodeURIComponent(query)}&year=${year}&market=${market}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || '조회 실패');
             setResult(data);
@@ -194,20 +253,74 @@ export default function FinancePage() {
             {/* ── 검색 화면 ── */}
             {step === 'search' && (
                 <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>회사명 또는 종목코드를 입력하세요</p>
 
-                    <input
-                        type="text"
-                        value={query}
-                        onChange={(e) => setQuery(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                        placeholder="예: 삼성전자 또는 005930"
-                        style={{
-                            width: '100%', padding: '14px 16px', background: '#111827',
-                            color: '#fff', border: '1px solid #374151', borderRadius: 8,
-                            fontSize: 16, boxSizing: 'border-box', outline: 'none',
-                        }}
-                    />
+                    {/* market 토글 */}
+                    <div style={{ display: 'flex', background: '#111827', borderRadius: 8, padding: 4, gap: 4 }}>
+                        {([['kr', '🇰🇷 한국'], ['us', '🇺🇸 미국']] as const).map(([key, label]) => (
+                            <button
+                                key={key}
+                                onClick={() => { setMarket(key); setQuery(''); }}
+                                style={{
+                                    flex: 1, padding: '10px 0',
+                                    background: market === key ? '#0d4f8c' : 'transparent',
+                                    color: market === key ? '#fff' : '#6b7280',
+                                    border: 'none', borderRadius: 6,
+                                    fontSize: 14, fontWeight: market === key ? 'bold' : 'normal',
+                                    cursor: 'pointer',
+                                }}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+
+                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+                        {market === 'us' ? '회사명 또는 티커를 입력하세요' : '회사명 또는 종목코드를 입력하세요'}
+                    </p>
+
+                    <div style={{ position: 'relative' }}>
+                        <input
+                            type="text"
+                            value={query}
+                            onChange={(e) => setQuery(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                            placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
+                            style={{
+                                width: '100%', padding: '14px 16px', background: '#111827',
+                                color: '#fff', border: '1px solid #374151', borderRadius: 8,
+                                fontSize: 16, boxSizing: 'border-box', outline: 'none',
+                            }}
+                        />
+
+                        {/* 드롭다운 */}
+                        {suggestions.length > 0 && (
+                            <div style={{
+                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                background: '#1f2937', border: '1px solid #374151',
+                                borderRadius: 8, marginTop: 4, overflow: 'hidden',
+                            }}>
+                                {suggestions.map((name) => (
+                                    <button
+                                        key={name}
+                                        onMouseDown={() => {   // onClick 대신 onMouseDown (onBlur보다 먼저 실행)
+                                            setQuery(name);
+                                            setSuggestions([]);
+                                        }}
+                                        style={{
+                                            display: 'block', width: '100%', padding: '12px 16px',
+                                            background: 'none', border: 'none', borderBottom: '1px solid #374151',
+                                            color: '#e2e8f0', fontSize: 14, textAlign: 'left', cursor: 'pointer',
+                                        }}
+                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#374151')}
+                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                                    >
+                                        {name}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
 
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                         <span style={{ color: '#888', fontSize: 13 }}>사업연도</span>
@@ -247,7 +360,10 @@ export default function FinancePage() {
                     <div style={{ marginTop: 8 }}>
                         <p style={{ color: '#555', fontSize: 12, margin: '0 0 8px' }}>예시</p>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {['삼성전자', 'SK하이닉스', '카카오', 'NAVER'].map((name) => (
+                            {(market === 'us'
+                                    ? ['테슬라', '애플', '엔비디아', '알파벳']
+                                    : ['삼성전자', 'SK하이닉스', '카카오', 'NAVER']
+                            ).map((name) => (
                                 <button
                                     key={name}
                                     onClick={() => setQuery(name)}
@@ -255,9 +371,8 @@ export default function FinancePage() {
                                         padding: '6px 12px', background: '#1f2937',
                                         color: '#9ca3af', border: '1px solid #374151',
                                         borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                                    }}
-                                >
-                                    {name}
+                                    }}>
+                                        {name}
                                 </button>
                             ))}
                         </div>
@@ -270,7 +385,7 @@ export default function FinancePage() {
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
                     <div style={{ color: '#60a5fa', fontSize: 40 }}>📊</div>
                     <p style={{ color: '#fff', fontSize: 16, margin: 0 }}>{query} 분석 중...</p>
-                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>DART API에서 데이터를 가져오고 있어요</p>
+                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>API에서 데이터를 가져오고 있어요</p>
                 </div>
             )}
 
@@ -330,20 +445,33 @@ export default function FinancePage() {
 
 // ── 기업 개요 카드 ─────────────────────────────────────────
 function CompanyCard({ info }: { info: CompanyInfo }) {
+    const isUs = info.market === 'US';
+
     return (
         <div style={{ margin: 16, padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                 <div>
                     <h3 style={{ color: '#fff', margin: '0 0 4px', fontSize: 18 }}>{info.corp_name}</h3>
-                    <span style={{ color: '#888', fontSize: 12 }}>종목코드 {info.stock_code}</span>
+                    <span style={{ color: '#888', fontSize: 12 }}>
+                        {isUs ? `${info.ticker} · ${info.exchange}` : `종목코드 ${info.stock_code}`}
+                    </span>
                 </div>
                 <span style={{ background: '#1e3a5f', color: '#60a5fa', padding: '4px 10px', borderRadius: 20, fontSize: 12 }}>
-          업종 {info.induty_code}
-        </span>
+                    {isUs ? info.sic_description : `업종 ${info.induty_code}`}
+                </span>
             </div>
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                <InfoRow label="대표이사" value={info.ceo_nm} />
-                <InfoRow label="설립일"   value={formatDate(info.est_dt)} />
+                {isUs ? (
+                    <>
+                        <InfoRow label="본사 주(State)" value={info.state ?? '-'} />
+                        <InfoRow label="결산월"         value={info.fiscal_year_end ? `${info.fiscal_year_end.slice(0, 2)}월` : '-'} />
+                    </>
+                ) : (
+                    <>
+                        <InfoRow label="대표이사" value={info.ceo_nm ?? '-'} />
+                        <InfoRow label="설립일"   value={formatDate(info.est_dt ?? null)} />
+                    </>
+                )}
             </div>
         </div>
     );
@@ -401,9 +529,10 @@ function IncomeChart({ data, years }: { data: Record<string, YearFinancial>; yea
         if (existingChart) existingChart.destroy();
         chartRef.current = null;
 
-        const revenue  = years.map((y) => data[y]?.income_statement.revenue?.억원 ?? 0);
-        const opProfit = years.map((y) => data[y]?.income_statement.operating_profit?.억원 ?? 0);
-        const net      = years.map((y) => data[y]?.income_statement.net_income?.억원 ?? 0);
+        const unit     = getChartUnit(data);
+        const revenue  = years.map((y) => getChartValue(data[y]?.income_statement.revenue));
+        const opProfit = years.map((y) => getChartValue(data[y]?.income_statement.operating_profit));
+        const net      = years.map((y) => getChartValue(data[y]?.income_statement.net_income));
 
         chartRef.current = new Chart(canvasRef.current, {
             type: 'bar',
@@ -419,11 +548,11 @@ function IncomeChart({ data, years }: { data: Record<string, YearFinancial>; yea
                 responsive: true,
                 plugins: {
                     legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}억원` } },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}${unit}` } },
                 },
                 scales: {
                     x: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
-                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}억` }, grid: { color: '#1f2937' } },
+                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#1f2937' } },
                 },
             },
         });
@@ -451,7 +580,7 @@ function BalanceChart({ data }: { data?: BalanceSheet }) {
             data: {
                 labels: ['부채', '자본'],
                 datasets: [{
-                    data: [data.total_liabilities?.억원 ?? 0, data.total_equity?.억원 ?? 0],
+                    data: [getChartValue(data.total_liabilities), getChartValue(data.total_equity)],
                     backgroundColor: ['#f87171', '#00cc44'],
                     borderColor: '#111827',
                     borderWidth: 2,
@@ -461,7 +590,7 @@ function BalanceChart({ data }: { data?: BalanceSheet }) {
                 responsive: true,
                 plugins: {
                     legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${Number(ctx.raw).toLocaleString()}억원` } },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${Number(ctx.raw).toLocaleString()}` } },
                 },
             },
         });
@@ -484,25 +613,27 @@ function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; y
         if (existingChart) existingChart.destroy();
         chartRef.current = null;
 
+        const unit = getChartUnit(data);
+
         chartRef.current = new Chart(canvasRef.current, {
             type: 'bar',
             data: {
                 labels: years,
                 datasets: [
-                    { label: '영업활동', data: years.map((y) => data[y]?.cash_flow.operating_cf?.억원 ?? 0), backgroundColor: '#f59e0b' },
-                    { label: '투자활동', data: years.map((y) => data[y]?.cash_flow.investing_cf?.억원 ?? 0), backgroundColor: '#60a5fa' },
-                    { label: '재무활동', data: years.map((y) => data[y]?.cash_flow.financing_cf?.억원 ?? 0), backgroundColor: '#a78bfa' },
+                    { label: '영업활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.operating_cf)), backgroundColor: '#f59e0b' },
+                    { label: '투자활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.investing_cf)), backgroundColor: '#60a5fa' },
+                    { label: '재무활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.financing_cf)), backgroundColor: '#a78bfa' },
                 ],
             },
             options: {
                 responsive: true,
                 plugins: {
                     legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
-                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}억원` } },
+                    tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}${unit}` } },
                 },
                 scales: {
                     x: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
-                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}억` }, grid: { color: '#1f2937' } },
+                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#1f2937' } },
                 },
             },
         });
