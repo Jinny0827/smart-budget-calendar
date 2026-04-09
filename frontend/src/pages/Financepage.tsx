@@ -178,6 +178,7 @@ export default function FinancePage() {
     const [tab,    setTab]    = useState<TabKey>('financial');
     const [market, setMarket] = useState<'kr' | 'us'>('kr');
     const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [selectedIndex, setSelectedIndex] = useState(-1);
     const acCache = useRef<Record<string, string[]>>({});
 
     useEffect(() => {
@@ -198,12 +199,15 @@ export default function FinancePage() {
             try {
                 const res  = await fetch(`${API_BASE}/autocomplete?query=${encodeURIComponent(query.trim())}&market=${market}`);
                 const data = await res.json();
-                acCache.current[cacheKey] = data;
+                if (data.length > 0) {
+                    acCache.current[cacheKey] = data;  // 결과 있을 때만 캐싱
+                }
                 setSuggestions(data);
+                setSelectedIndex(-1);
             } catch {
                 setSuggestions([]);
             }
-        }, 300);
+        }, 150);
 
         return () => clearTimeout(timer);
     }, [query, market]);
@@ -283,8 +287,31 @@ export default function FinancePage() {
                             type="text"
                             value={query}
                             onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                            onBlur={() => setTimeout(() => setSuggestions([]), 150)}
+                            onKeyDown={(e) => {
+                                if (suggestions.length > 0) {
+                                    if (e.key === 'ArrowDown') {
+                                        e.preventDefault();
+                                        setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1));
+                                    } else if (e.key === 'ArrowUp') {
+                                        e.preventDefault();
+                                        setSelectedIndex(i => Math.max(i - 1, -1));
+                                    } else if (e.key === 'Escape') {
+                                        setSuggestions([]);
+                                        setSelectedIndex(-1);
+                                    } else if (e.key === 'Enter') {
+                                        if (selectedIndex >= 0) {
+                                            setQuery(suggestions[selectedIndex]);
+                                            setSuggestions([]);
+                                            setSelectedIndex(-1);
+                                        } else {
+                                            handleSearch();
+                                        }
+                                    }
+                                } else if (e.key === 'Enter') {
+                                    handleSearch();
+                                }
+                            }}
+                            onBlur={() => setTimeout(() => { setSuggestions([]); setSelectedIndex(-1); }, 150)}
                             placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
                             style={{
                                 width: '100%', padding: '14px 16px', background: '#111827',
@@ -300,20 +327,22 @@ export default function FinancePage() {
                                 background: '#1f2937', border: '1px solid #374151',
                                 borderRadius: 8, marginTop: 4, overflow: 'hidden',
                             }}>
-                                {suggestions.map((name) => (
+                                {suggestions.map((name, idx) => (
                                     <button
                                         key={name}
                                         onMouseDown={() => {   // onClick 대신 onMouseDown (onBlur보다 먼저 실행)
                                             setQuery(name);
                                             setSuggestions([]);
+                                            setSelectedIndex(-1);
                                         }}
+                                        onMouseEnter={() => setSelectedIndex(idx)}
+                                        onMouseLeave={() => setSelectedIndex(-1)}
                                         style={{
                                             display: 'block', width: '100%', padding: '12px 16px',
-                                            background: 'none', border: 'none', borderBottom: '1px solid #374151',
+                                            background: selectedIndex === idx ? '#374151' : 'none',
+                                            border: 'none', borderBottom: '1px solid #374151',
                                             color: '#e2e8f0', fontSize: 14, textAlign: 'left', cursor: 'pointer',
                                         }}
-                                        onMouseEnter={(e) => (e.currentTarget.style.background = '#374151')}
-                                        onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
                                     >
                                         {name}
                                     </button>
@@ -427,7 +456,7 @@ export default function FinancePage() {
                         {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
                         {tab === 'stock'       && <StockTab data={result.stock_data} />}
                         {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
-                        {tab === 'shareholder' && <ShareholderTab data={result.shareholders.shareholders} />}
+                        {tab === 'shareholder' && <ShareholderTab data={result.shareholders?.shareholders ?? []} />}
                         {tab === 'dividend'    && <DividendTab data={result.dividend} />}
                         {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
                     </div>
@@ -744,7 +773,7 @@ function DisclosureTab({ data }: { data: Disclosure[] }) {
 
 // ── 주주 탭 ───────────────────────────────────────────────
 function ShareholderTab({ data }: { data: Shareholder[] }) {
-    if (!data.length) return <Empty text="주주 현황 정보가 없습니다" />;
+    if (!data || !data.length) return <Empty text="주주 현황 정보가 없습니다" />;
     const filtered = data.filter((s) => s.name && s.name.trim() !== '계');
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

@@ -3,6 +3,12 @@ Transform: AWS::Serverless-2016-10-31
 Description: Smart Budget Calendar Backend (Groq Version)
 
 Globals:
+  Api:
+    Cors:
+      AllowOrigin: "'https://budget.bowling-manager.com'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowMethods: "'GET,POST,PUT,PATCH,DELETE,OPTIONS'"
+      AllowCredentials: true
   Function:
     Timeout: 30
     MemorySize: 512
