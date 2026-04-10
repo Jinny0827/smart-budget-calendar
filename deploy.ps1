@@ -15,6 +15,7 @@ function Deploy-Frontend {
 function Deploy-Backend {
     Write-Host "▶ 백엔드 배포 시작..." -ForegroundColor Cyan
     Set-Location backend
+    npm run build
     sam build
     sam deploy
     Set-Location ..
