@@ -61,6 +61,7 @@ function LandingPage() {
                         { icon: '📊', title: '통계 대시보드', desc: '월별 요약과 카테고리별 지출 비중을 한눈에 확인합니다.' },
                         { icon: '💳', title: '카드 내역 임포트', desc: '엑셀 카드 명세서를 업로드하면 자동으로 파싱·등록됩니다.' },
                         { icon: '👥', title: '그룹 가계부', desc: '그룹을 만들어 일정·지출을 공유하고 함께 분석합니다.' },
+                        { icon: '📈', title: '재무 분석', desc: '국내·미국 기업 재무제표, 주가, AI 인사이트와 내 포트폴리오를 한눈에 관리합니다.' },
                         { icon: '🔐', title: '2단계 인증', desc: 'Google Authenticator OTP로 계정을 안전하게 보호합니다.' },
                     ].map(({ icon, title, desc }) => (
                         <div key={title} className="bg-gray-50 rounded-xl p-6">
@@ -71,6 +72,79 @@ function LandingPage() {
                     ))}
                 </div>
             </section>
+
+            {/* 재무 분석 소개 */}
+            <section className="px-6 py-20 bg-gray-950">
+                <div className="max-w-5xl mx-auto">
+                    <div className="flex flex-col md:flex-row items-center gap-12">
+
+                        {/* 텍스트 */}
+                        <div className="flex-1">
+                            <span className="text-blue-400 text-sm font-semibold uppercase tracking-widest">New Feature</span>
+                            <h2 className="text-3xl font-bold text-white mt-2 mb-4 leading-tight">
+                                기업 재무 분석부터<br />내 포트폴리오까지
+                            </h2>
+                            <p className="text-gray-400 mb-6 leading-relaxed">
+                                국내(DART)·미국(SEC) 기업의 3개년 재무제표와 실시간 주가를 조회하고,
+                                AI가 MZ식으로 분석해드립니다. 관심 종목과 보유 종목을 등록하면
+                                포트폴리오 종합 인사이트도 받아볼 수 있습니다.
+                            </p>
+                            <div className="flex flex-wrap gap-2 mb-8">
+                                {['3개년 재무제표', '실시간 주가', 'AI 종목 분석', '관심 종목', '보유 종목 수익률', '포트폴리오 인사이트'].map(tag => (
+                                    <span key={tag} className="bg-gray-800 text-gray-300 text-xs px-3 py-1 rounded-full border border-gray-700">
+                            {tag}
+                        </span>
+                                ))}
+                            </div>
+                            <Link
+                                to="/register"
+                                className="inline-block px-6 py-3 bg-blue-500 text-white font-semibold rounded-lg hover:bg-blue-600 transition"
+                            >
+                                시작하기
+                            </Link>
+                        </div>
+
+                        {/* 미리보기 카드 */}
+                        <div className="flex-1 w-full">
+                            <div className="bg-gray-900 rounded-2xl p-5 border border-gray-800">
+                                <div className="flex items-center justify-between mb-4">
+                                    <span className="text-white font-semibold text-sm">삼성전자 분석</span>
+                                    <span className="text-green-400 text-xs">▲ 2.4%</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-3 mb-4">
+                                    {[
+                                        { label: '매출', value: '300조' },
+                                        { label: '영업이익', value: '32조' },
+                                        { label: '순이익', value: '26조' },
+                                    ].map(({ label, value }) => (
+                                        <div key={label} className="bg-gray-800 rounded-lg p-3 text-center">
+                                            <p className="text-gray-400 text-xs mb-1">{label}</p>
+                                            <p className="text-white text-sm font-bold">{value}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                                <div className="bg-gray-800 rounded-lg p-3 text-sm text-gray-300 leading-relaxed">
+                                    <span className="text-blue-400 font-semibold">AI 인사이트</span><br />
+                                    23년 어닝쇼크 맞았지만 24년 극적 반등.
+                                    HBM 수혜 기대감에 거래량도 살아나는 중.
+                                </div>
+                                <div className="mt-3 flex gap-2">
+                                    <div className="flex-1 bg-gray-800 rounded-lg p-3">
+                                        <p className="text-gray-400 text-xs mb-1">관심 종목</p>
+                                        <p className="text-white text-xs">삼성전자, 애플, 엔비디아</p>
+                                    </div>
+                                    <div className="flex-1 bg-gray-800 rounded-lg p-3">
+                                        <p className="text-gray-400 text-xs mb-1">포트폴리오 수익률</p>
+                                        <p className="text-green-400 text-xs font-bold">+12.4%</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+            </section>
+
 
             {/* CTA */}
             <section className="bg-blue-500 py-16 text-center px-6">

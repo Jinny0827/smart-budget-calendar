@@ -1,4 +1,4 @@
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import MongoDBStore from 'rate-limit-mongo';
 import dotenv from 'dotenv';
 import { verifyToken } from '../utils/jwt';
@@ -16,7 +16,7 @@ export const loginLimiter = rateLimit({
     limit: 20,
     store: makeStore(60 * 1000),
     skipSuccessfulRequests: true,
-    keyGenerator: (req) => req.ip ?? 'unknown',
+    keyGenerator: (req) => ipKeyGenerator(req.ip ?? ''),
     message: {
         success: false,
         message: '로그인 시도가 너무 많습니다. 잠시 후 다시 시도해주세요.'
@@ -53,7 +53,7 @@ export const apiLimiter = rateLimit({
         } catch {
             // 토큰 없거나 만료 시 IP로 폴백
         }
-        return req.ip ?? 'unknown';
+        return ipKeyGenerator(req.ip ?? '');
     },
     message: {
         success: false,

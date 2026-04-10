@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
 
 // ── 상수 ──────────────────────────────────────────────────
-const API_BASE = import.meta.env.VITE_FINANCE_API_URL
-    ?? 'https://api.finance.bowling-manager.com';
+const API_BASE = `${import.meta.env.VITE_API_URL}/finance`;
 
 // ── 타입 ──────────────────────────────────────────────────
 interface CompanyInfo {

@@ -19,6 +19,7 @@
   "dependencies": {
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.11",
+    "adm-zip": "^0.5.17",
     "aws-serverless-express": "^3.4.0",
     "axios": "^1.13.5",
     "bcryptjs": "^2.4.3",
@@ -35,9 +36,11 @@
     "qrcode": "^1.5.4",
     "rate-limit-mongo": "^2.3.2",
     "speakeasy": "^2.0.0",
-    "xlsx": "^0.18.5"
+    "xlsx": "^0.18.5",
+    "xml2js": "^0.6.2"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.8",
     "@types/aws-lambda": "^8.10.160",
     "@types/aws-serverless-express": "^3.3.10",
     "@types/bcryptjs": "^2.4.6",
@@ -48,6 +51,7 @@
     "@types/node": "^20.10.6",
     "@types/qrcode": "^1.5.6",
     "@types/speakeasy": "^2.0.10",
+    "@types/xml2js": "^0.4.14",
     "@typescript-eslint/eslint-plugin": "^6.16.0",
     "@typescript-eslint/parser": "^6.16.0",
     "eslint": "^8.56.0",

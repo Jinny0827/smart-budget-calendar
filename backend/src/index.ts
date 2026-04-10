@@ -19,6 +19,7 @@ import postRoutes from "./routes/post-routes";
 import activityRouts from "./routes/activity-routes";
 import {apiLimiter} from "./middleware/rate-limit";
 import notificationRoutes from "./routes/notification-routes";
+import financeRoutes from "./routes/finance-routes";
 
 
 
@@ -78,6 +79,7 @@ app.use('/api/messages', messageRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/activity', activityRouts);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/finance', financeRoutes);
 
 // IP 차단에 대한 설정
 // API Gateway → 실제 클라이언트 IP 추출 (X-Forwarded-For)
