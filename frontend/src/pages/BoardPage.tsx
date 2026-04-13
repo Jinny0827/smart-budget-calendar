@@ -1,15 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { logout, getCurrentUser } from "../services/auth-service";
 import { postService } from '../services/post-service.ts';
 import type { Post, PostListResponse } from "../types";
 
 type BoardType = 'notice' | 'free';
 
 export default function BoardPage() {
-    const navigate = useNavigate();
-    const user = getCurrentUser();
-
     const [boardType, setBoardType]   = useState<BoardType>('notice');
     const [posts, setPosts]           = useState<Post[]>([]);
     const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
@@ -21,9 +16,6 @@ export default function BoardPage() {
 
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     const isAdmin = currentUser?.role === 'admin';
-
-    const handleLogout = () => { logout(); window.location.href = '/login'; };
-
 
     const fetchPosts = useCallback(async (page = 1) => {
         setLoading(true);
@@ -82,35 +74,7 @@ export default function BoardPage() {
         isAdmin || (!!currentUser && post.authorId?._id === currentUser.id);
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">스마트 가계부</h1>
-                    <div className="flex items-center gap-2">
-                        <span className="text-gray-700 hidden sm:inline">{user?.name}님</span>
-                        <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
-                            로그아웃
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            <nav className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex gap-2 py-4 overflow-x-auto whitespace-nowrap">
-                        <button onClick={() => navigate('/dashboard')} className="px-4 py-2 text-gray-600 hover:text-blue-600">대시보드</button>
-                        <button onClick={() => navigate('/schedules')} className="px-4 py-2 text-gray-600 hover:text-blue-600">일정 관리</button>
-                        <button onClick={() => navigate('/expenses')} className="px-4 py-2 text-gray-600 hover:text-blue-600">지출 관리</button>
-                        <button onClick={() => navigate('/groups')} className="px-4 py-2 text-gray-600 hover:text-blue-600">그룹</button>
-                        <button onClick={() => navigate('/board')} className="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">게시판</button>
-                        {isAdmin && (
-                            <button onClick={() => navigate('/admin')} className="px-4 py-2 text-purple-600 hover:text-purple-800 font-medium">백오피스</button>
-                        )}
-                    </div>
-                </div>
-            </nav>
-
-        <div className="max-w-4xl mx-auto p-6">
+        <div className="max-w-4xl mx-auto">
             {/* 탭 */}
             <div className="flex gap-2 mb-6">
                 {(['notice', 'free'] as BoardType[]).map((type) => (
@@ -234,7 +198,6 @@ export default function BoardPage() {
                     </div>
                 </>
             )}
-        </div>
         </div>
     );
 }

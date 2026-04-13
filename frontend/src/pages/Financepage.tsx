@@ -27,7 +27,7 @@ function formatDisclosureDate(dt: string) {
 }
 function getColor(raw?: number) {
     if (raw === undefined) return undefined;
-    return raw >= 0 ? '#00cc44' : '#f87171';
+    return raw >= 0 ? '#22c55e' : '#ef4444'; // Tailwind green-500, red-500
 }
 function getChartValue(amount?: AmountData): number {
     if (!amount) return 0;
@@ -58,6 +58,10 @@ export default function FinancePage() {
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const acCache = useRef<Record<string, string[]>>({});
 
+    // 쿨 다운 관련 상태 값 추가
+    const [refreshCooldownEnd, setRefreshCooldownEnd] = useState<number | null>(null);
+    const [cooldownText, setCooldownText] = useState('');
+    
     // 종목 등록 모달
     const [showModal,   setShowModal]   = useState(false);
     const [refreshKey,  setRefreshKey]  = useState(0);
@@ -80,6 +84,33 @@ export default function FinancePage() {
 
         return () => clearTimeout(timer);
     }, [query, market]);
+    
+    // 쿨다운 타이머를 위한 useEffect 추가
+    useEffect(() => {
+        if (!refreshCooldownEnd) {
+            setCooldownText('');
+            return;
+        }
+
+        const interval = setInterval(()=> {
+            const now = Date.now();
+            const timeLeft = Math.round((refreshCooldownEnd - now) / 1000);
+
+            if(timeLeft <= 0) {
+                setRefreshCooldownEnd(null);
+            } else {
+                const minutes = Math.floor(timeLeft / 60);
+                const seconds = timeLeft % 60;
+
+                setCooldownText(`(${minutes}:${seconds.toString().padStart(2, '0')})`);
+            }
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [refreshCooldownEnd]);
+
+    // 렌더링 시 사용할 변수
+    const isRefreshing = refreshCooldownEnd !== null;
 
     // ── 분석 호출 ──
     const handleSearch = async (force = false) => {
@@ -131,278 +162,229 @@ export default function FinancePage() {
     };
 
     return (
-        <div style={{ maxWidth: 480, margin: '0 auto', background: '#000', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div className="bg-white rounded-lg shadow p-6 flex flex-col h-full">
 
             {/* ── 헤더 ── */}
-            <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ color: '#888', fontSize: 13 }}>
-                    {pageTab === 'mystock' ? '내 종목' : step === 'search' ? '기업 검색' : step === 'loading' ? '조회 중' : '분석 결과'}
-                </span>
-                <h2 style={{ color: '#fff', margin: 0, fontSize: 17, fontWeight: 'bold' }}>재무 분석</h2>
-                {pageTab === 'analyze' && step === 'result'
-                    ? <button onClick={handleReset} style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>다시 검색</button>
-                    : <span style={{ width: 56 }} />
+            <div className="flex items-center justify-between pb-4 mb-4">
+                <h2 className="text-2xl font-bold text-gray-900">주식 분석</h2>
+                {pageTab === 'analyze' && step === 'result' &&
+                    (<button onClick={handleReset} className="text-blue-600 text-sm hover:underline">다시 검색</button>)
                 }
             </div>
 
             {/* ── 페이지 탭 ── */}
-            <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', padding: '0 16px' }}>
+            <div className="flex border-b border-gray-200 mb-4">
                 {([['mystock', '내 종목'], ['analyze', '기업 분석']] as const).map(([key, label]) => (
                     <button
                         key={key}
                         onClick={() => setPageTab(key)}
-                        style={{
-                            padding: '10px 16px', background: 'none', border: 'none',
-                            color: pageTab === key ? '#60a5fa' : '#6b7280',
-                            borderBottom: pageTab === key ? '2px solid #60a5fa' : '2px solid transparent',
-                            fontSize: 14, fontWeight: pageTab === key ? 'bold' : 'normal',
-                            cursor: 'pointer',
-                        }}
+                        className={`px-4 py-2 text-sm font-medium ${
+                            pageTab === key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600 border-b-2 border-transparent'
+                        }`}
                     >
                         {label}
                     </button>
                 ))}
             </div>
 
-            {/* ── 내 종목 탭 ── */}
-            {pageTab === 'mystock' && (
-                <div style={{ padding: 16, flex: 1 }}>
+            {/* ── 탭 콘텐츠 영역 (이 부분이 남은 공간을 채우도록 수정) ── */}
+            <div className="flex-1 flex flex-col">
+                {pageTab === 'mystock' && (
                     <StockList
                         onRegisterClick={() => setPageTab('analyze')}
                         refreshKey={refreshKey}
                     />
-                </div>
-            )}
+                )}
 
-            {/* ── 기업 분석 탭 ── */}
-            {pageTab === 'analyze' && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                {pageTab === 'analyze' && (
+                    <div className="flex-1 flex flex-col">
 
-                    {/* 검색 화면 */}
-                    {step === 'search' && (
-                        <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {/* 검색 화면 */}
+                        {step === 'search' && (
+                            <div className="p-4 flex-1 flex flex-col gap-4">
 
-                            {/* 마켓 토글 */}
-                            <div style={{ display: 'flex', background: '#111827', borderRadius: 8, padding: 4, gap: 4 }}>
-                                {([['kr', '🇰🇷 한국'], ['us', '🇺🇸 미국']] as const).map(([key, label]) => (
-                                    <button
-                                        key={key}
-                                        onClick={() => { setMarket(key); setQuery(''); setSuggestions([]); }}
-                                        style={{
-                                            flex: 1, padding: '10px 0',
-                                            background: market === key ? '#0d4f8c' : 'transparent',
-                                            color: market === key ? '#fff' : '#6b7280',
-                                            border: 'none', borderRadius: 6,
-                                            fontSize: 14, fontWeight: market === key ? 'bold' : 'normal',
-                                            cursor: 'pointer',
+                                {/* 마켓 토글 */}
+                                <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
+                                    {([['kr', '🇰🇷 한국'], ['us', '🇺🇸 미국']] as const).map(([key, label]) => (
+                                        <button
+                                            key={key}
+                                            onClick={() => { setMarket(key); setQuery(''); setSuggestions([]); }}
+                                            className={`flex-1 py-2 text-sm rounded-md ${
+                                                market === key ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-gray-200'
+                                            }`}
+                                        >
+                                            {label}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                <p className="text-gray-500 text-sm">
+                                    {market === 'us' ? '회사명 또는 티커를 입력하세요' : '회사명 또는 종목코드를 입력하세요'}
+                                </p>
+
+                                {/* 검색 입력 */}
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={query}
+                                        onChange={(e) => setQuery(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (suggestions.length > 0) {
+                                                if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+                                                else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, -1)); }
+                                                else if (e.key === 'Escape') { setSuggestions([]); setSelectedIndex(-1); }
+                                                else if (e.key === 'Enter') {
+                                                    if (selectedIndex >= 0) { setQuery(suggestions[selectedIndex]); setSuggestions([]); setSelectedIndex(-1); }
+                                                    else { handleSearch(); }
+                                                }
+                                            } else if (e.key === 'Enter') { handleSearch(); }
                                         }}
+                                        onBlur={() => setTimeout(() => { setSuggestions([]); setSelectedIndex(-1); }, 150)}
+                                        placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
+                                        className="w-full p-3 border border-gray-300 rounded-lg text-gray-900 text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    />
+
+                                    {suggestions.length > 0 && (
+                                        <div className="absolute top-full left-0 right-0 z-10 bg-white border border-gray-300 rounded-lg mt-1 overflow-hidden shadow-lg">
+                                            {suggestions.map((name, idx) => (
+                                                <button
+                                                    key={name}
+                                                    onMouseDown={() => { setQuery(name); setSuggestions([]); setSelectedIndex(-1); }}
+                                                    onMouseEnter={() => setSelectedIndex(idx)}
+                                                    onMouseLeave={() => setSelectedIndex(-1)}
+                                                    className={`block w-full px-4 py-3 text-sm text-gray-800 text-left hover:bg-gray-100 ${selectedIndex === idx ? 'bg-gray-100' : ''} border-b border-gray-200 last:border-b-0`}
+                                                >
+                                                    {name}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* 사업연도 */}
+                                <div className="flex items-center gap-2">
+                                    <span className="text-gray-500 text-sm">사업연도</span>
+                                    <select
+                                        value={year}
+                                        onChange={(e) => setYear(e.target.value)}
+                                        className="p-2 border border-gray-300 rounded-lg text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                     >
-                                        {label}
-                                    </button>
-                                ))}
-                            </div>
+                                        {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 1 - i))
+                                            .map((y) => <option key={y} value={y}>{y}년</option>)}
+                                    </select>
+                                </div>
 
-                            <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
-                                {market === 'us' ? '회사명 또는 티커를 입력하세요' : '회사명 또는 종목코드를 입력하세요'}
-                            </p>
+                                {error && <p className="text-red-500 text-sm mt-0">{error}</p>}
 
-                            {/* 검색 입력 */}
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type="text"
-                                    value={query}
-                                    onChange={(e) => setQuery(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (suggestions.length > 0) {
-                                            if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1)); }
-                                            else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, -1)); }
-                                            else if (e.key === 'Escape') { setSuggestions([]); setSelectedIndex(-1); }
-                                            else if (e.key === 'Enter') {
-                                                if (selectedIndex >= 0) { setQuery(suggestions[selectedIndex]); setSuggestions([]); setSelectedIndex(-1); }
-                                                else { handleSearch(); }
-                                            }
-                                        } else if (e.key === 'Enter') { handleSearch(); }
+                                <button
+                                    onClick={() => {
+                                        handleSearch();
                                     }}
-                                    onBlur={() => setTimeout(() => { setSuggestions([]); setSelectedIndex(-1); }, 150)}
-                                    placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
-                                    style={{
-                                        width: '100%', padding: '14px 16px', background: '#111827',
-                                        color: '#fff', border: '1px solid #374151', borderRadius: 8,
-                                        fontSize: 16, boxSizing: 'border-box', outline: 'none',
-                                    }}
-                                />
+                                    disabled={!query.trim()}
+                                    className="mt-4 w-full py-3 bg-blue-600 text-white rounded-lg text-base font-bold hover:bg-blue-700 disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                                >
+                                    주식 분석 시작
+                                </button>
 
-                                {suggestions.length > 0 && (
-                                    <div style={{
-                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                        background: '#1f2937', border: '1px solid #374151',
-                                        borderRadius: 8, marginTop: 4, overflow: 'hidden',
-                                    }}>
-                                        {suggestions.map((name, idx) => (
+                                {/* 예시 버튼 */}
+                                <div className="mt-4">
+                                    <p className="text-gray-500 text-xs mb-2">예시</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        {(market === 'us'
+                                            ? ['테슬라', '애플', '엔비디아', '알파벳']
+                                            : ['삼성전자', 'SK하이닉스', '카카오', 'NAVER']
+                                        ).map((name) => (
                                             <button
                                                 key={name}
-                                                onMouseDown={() => { setQuery(name); setSuggestions([]); setSelectedIndex(-1); }}
-                                                onMouseEnter={() => setSelectedIndex(idx)}
-                                                onMouseLeave={() => setSelectedIndex(-1)}
-                                                style={{
-                                                    display: 'block', width: '100%', padding: '12px 16px',
-                                                    background: selectedIndex === idx ? '#374151' : 'none',
-                                                    border: 'none', borderBottom: '1px solid #374151',
-                                                    color: '#e2e8f0', fontSize: 14, textAlign: 'left', cursor: 'pointer',
-                                                }}
+                                                onClick={() => setQuery(name)}
+                                                className="px-3 py-1.5 bg-gray-100 text-gray-700 border border-gray-300 rounded-full text-sm hover:bg-gray-200"
                                             >
                                                 {name}
                                             </button>
                                         ))}
                                     </div>
-                                )}
+                                </div>
                             </div>
+                        )}
 
-                            {/* 사업연도 */}
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                <span style={{ color: '#888', fontSize: 13 }}>사업연도</span>
-                                <select
-                                    value={year}
-                                    onChange={(e) => setYear(e.target.value)}
-                                    style={{
-                                        padding: '8px 12px', background: '#111827',
-                                        color: '#fff', border: '1px solid #374151',
-                                        borderRadius: 8, fontSize: 14, cursor: 'pointer',
-                                    }}
-                                >
-                                    {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 1 - i))
-                                        .map((y) => <option key={y} value={y}>{y}년</option>)}
-                                </select>
+                        {/* 로딩 화면 */}
+                        {step === 'loading' && (
+                            <div className="flex-1 flex flex-col items-center justify-center gap-4 py-12">
+                                <div className="text-blue-500 text-4xl">📊</div>
+                                <p className="text-gray-900 text-base font-medium">{query} 분석 중...</p>
+                                <p className="text-gray-500 text-sm">데이터를 가져오고 있어요</p>
                             </div>
+                        )}
 
-                            {error && <p style={{ color: '#f87171', fontSize: 13, margin: 0 }}>{error}</p>}
+                        {/* 결과 화면 */}
+                        {step === 'result' && result && (
+                            <div className="flex-1 flex flex-col">
 
-                            <button
-                                onClick={handleSearch}
-                                disabled={!query.trim()}
-                                style={{
-                                    marginTop: 8, padding: '14px 0',
-                                    background: query.trim() ? '#0d4f8c' : '#1f2937',
-                                    color: query.trim() ? '#fff' : '#6b7280',
-                                    border: 'none', borderRadius: 8,
-                                    fontSize: 16, cursor: query.trim() ? 'pointer' : 'default',
-                                    fontWeight: 'bold',
-                                }}
-                            >
-                                재무 분석 시작
-                            </button>
+                                <CompanyCard info={result.company_info} />
 
-                            {/* 예시 버튼 */}
-                            <div style={{ marginTop: 8 }}>
-                                <p style={{ color: '#555', fontSize: 12, margin: '0 0 8px' }}>예시</p>
-                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                                    {(market === 'us'
-                                        ? ['테슬라', '애플', '엔비디아', '알파벳']
-                                        : ['삼성전자', 'SK하이닉스', '카카오', 'NAVER']
-                                    ).map((name) => (
+                                {/* 종목 추가 버튼 */}
+                                <div className="px-4 pb-2">
+                                    <button
+                                        onClick={() => setShowModal(true)}
+                                        className="w-full py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-700"
+                                    >
+                                        ＋ 내 종목에 추가
+                                    </button>
+                                </div>
+
+                                {/* 분석 탭 메뉴 */}
+                                <div className="flex border-b border-gray-200 overflow-x-auto whitespace-nowrap">
+                                    {([
+                                        { key: 'financial',   label: '재무제표' },
+                                        { key: 'stock',       label: '📈 주가' },
+                                        { key: 'disclosure',  label: '공시' },
+                                        { key: 'shareholder', label: '주주' },
+                                        { key: 'dividend',    label: '배당' },
+                                        { key: 'insight',     label: '인사이트' },
+                                    ] as const).map(({ key, label }) => (
                                         <button
-                                            key={name}
-                                            onClick={() => setQuery(name)}
-                                            style={{
-                                                padding: '6px 12px', background: '#1f2937',
-                                                color: '#9ca3af', border: '1px solid #374151',
-                                                borderRadius: 20, fontSize: 13, cursor: 'pointer',
-                                            }}
+                                            key={key}
+                                            onClick={() => setTab(key)}
+                                            className={`flex-shrink-0 px-3 py-2 text-xs font-medium ${
+                                                tab === key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600 border-b-2 border-transparent'
+                                            }`}
                                         >
-                                            {name}
+                                            {label}
                                         </button>
                                     ))}
                                 </div>
-                            </div>
-                        </div>
-                    )}
 
-                    {/* 로딩 화면 */}
-                    {step === 'loading' && (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-                            <div style={{ color: '#60a5fa', fontSize: 40 }}>📊</div>
-                            <p style={{ color: '#fff', fontSize: 16, margin: 0 }}>{query} 분석 중...</p>
-                            <p style={{ color: '#888', fontSize: 13, margin: 0 }}>데이터를 가져오고 있어요</p>
-                        </div>
-                    )}
+                                {/* 탭 컨텐츠 */}
+                                <div className="p-4 flex-1">
+                                    {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
+                                    {tab === 'stock'       && <StockTab data={result.stock_data} />}
+                                    {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
+                                    {tab === 'shareholder' && <ShareholderTab data={result.shareholders?.shareholders ?? []} />}
+                                    {tab === 'dividend'    && <DividendTab data={result.dividend ?? []} />}
+                                    {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
+                                </div>
 
-                    {/* 결과 화면 */}
-                    {step === 'result' && result && (
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-
-                            <CompanyCard info={result.company_info} />
-
-                            {/* 종목 추가 버튼 */}
-                            <div style={{ padding: '0 16px 8px' }}>
-                                <button
-                                    onClick={() => setShowModal(true)}
-                                    style={{
-                                        width: '100%', padding: '11px 0',
-                                        background: '#1d4ed8', color: '#fff',
-                                        border: 'none', borderRadius: 8,
-                                        fontSize: 14, fontWeight: 'bold', cursor: 'pointer',
-                                    }}
-                                >
-                                    ＋ 내 종목에 추가
-                                </button>
-                            </div>
-
-                            {/* 분석 탭 메뉴 */}
-                            <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', overflowX: 'auto', scrollbarWidth: 'none' }}>
-                                {([
-                                    { key: 'financial',   label: '재무제표' },
-                                    { key: 'stock',       label: '📈 주가' },
-                                    { key: 'disclosure',  label: '공시' },
-                                    { key: 'shareholder', label: '주주' },
-                                    { key: 'dividend',    label: '배당' },
-                                    { key: 'insight',     label: '인사이트' },
-                                ] as const).map(({ key, label }) => (
+                                <div className="p-4 border-t border-gray-200 flex flex-col items-center gap-2">
                                     <button
-                                        key={key}
-                                        onClick={() => setTab(key)}
-                                        style={{
-                                            flexShrink: 0, padding: '12px 14px', background: 'none', border: 'none',
-                                            color: tab === key ? '#60a5fa' : '#6b7280',
-                                            borderBottom: tab === key ? '2px solid #60a5fa' : '2px solid transparent',
-                                            fontSize: 12, cursor: 'pointer',
-                                            fontWeight: tab === key ? 'bold' : 'normal',
-                                            whiteSpace: 'nowrap',
+                                        onClick={() => {
+                                            handleSearch(true);
+                                            // 5분 (300,000 밀리초) 후로 쿨다운 설정
+                                            setRefreshCooldownEnd(Date.now() + 300000);
                                         }}
+                                        disabled={isRefreshing}
+                                        className={`px-3.5 py-1.5 border border-gray-300 rounded-md text-gray-600 text-xs hover:bg-gray-50 ${isRefreshing ? 'opacity-60 cursor-not-allowed' : ''}`}
                                     >
-                                        {label}
+                                        🔄 데이터 새로고침 {cooldownText}
                                     </button>
-                                ))}
+                                    <p className="text-gray-500 text-xs text-center mt-0">
+                                        본 서비스는 투자 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
+                                    </p>
+                                </div>
                             </div>
-
-                            {/* 탭 컨텐츠 */}
-                            <div style={{ padding: 16, flex: 1 }}>
-                                {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
-                                {tab === 'stock'       && <StockTab data={result.stock_data} />}
-                                {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
-                                {tab === 'shareholder' && <ShareholderTab data={result.shareholders?.shareholders ?? []} />}
-                                {tab === 'dividend'    && <DividendTab data={result.dividend ?? []} />}
-                                {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
-                            </div>
-
-                            <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
-                                <button
-                                    onClick={() => handleSearch(true)}
-                                    style={{
-                                        background: 'none', border: '1px solid #374151',
-                                        color: '#6b7280', borderRadius: 6,
-                                        padding: '6px 14px', fontSize: 12, cursor: 'pointer',
-                                    }}
-                                >
-                                    🔄 데이터 새로고침 (캐시 무시)
-                                </button>
-                                <p style={{ color: '#4b5563', fontSize: 11, margin: 0, textAlign: 'center' }}>
-                                    본 서비스는 투자 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
-                                </p>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+                        )}
+                    </div>
+                )}
+            </div>
 
             {/* ── 종목 등록 모달 ── */}
             {showModal && result && (
@@ -416,25 +398,26 @@ export default function FinancePage() {
     );
 }
 
+// ... (The rest of the sub-components remain the same)
 // ══════════════════════════════════════════════════════════
 // 기업 개요 카드
 // ══════════════════════════════════════════════════════════
 function CompanyCard({ info }: { info: CompanyInfo }) {
     const isUs = info.market === 'US';
     return (
-        <div style={{ margin: 16, padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="m-4 p-4 bg-white rounded-lg shadow border border-gray-200">
+            <div className="flex justify-between items-start">
                 <div>
-                    <h3 style={{ color: '#fff', margin: '0 0 4px', fontSize: 18 }}>{info.corp_name}</h3>
-                    <span style={{ color: '#888', fontSize: 12 }}>
+                    <h3 className="text-lg font-bold text-gray-900 mb-1">{info.corp_name}</h3>
+                    <span className="text-gray-500 text-xs">
                         {isUs ? `${info.ticker} · ${info.exchange}` : `종목코드 ${info.stock_code}`}
                     </span>
                 </div>
-                <span style={{ background: '#1e3a5f', color: '#60a5fa', padding: '4px 10px', borderRadius: 20, fontSize: 12 }}>
+                <span className="bg-blue-100 text-blue-600 px-2.5 py-1 rounded-full text-xs">
                     {isUs ? info.sic_description : `업종 ${info.induty_code}`}
                 </span>
             </div>
-            <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <div className="mt-3 grid grid-cols-2 gap-2">
                 {isUs ? (
                     <>
                         <InfoRow label="본사 주(State)" value={info.state ?? '-'} />
@@ -459,19 +442,19 @@ function FinancialTab({ data, baseYear }: { data: Record<string, YearFinancial>;
     const latest = data[baseYear] ?? data[years[years.length - 1]];
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <SectionCard title="손익계산서 (3개년)" color="#00cc44">
+        <div className="flex flex-col gap-4">
+            <SectionCard title="손익계산서 (3개년)" color="#22c55e"> {/* green-500 */}
                 <IncomeChart data={data} years={years} />
-                <div style={{ marginTop: 12 }}>
+                <div className="mt-3">
                     <FinRow label="매출액"   value={latest?.income_statement.revenue?.표시} />
                     <FinRow label="영업이익" value={latest?.income_statement.operating_profit?.표시} color={getColor(latest?.income_statement.operating_profit?.raw)} />
                     <FinRow label="순이익"   value={latest?.income_statement.net_income?.표시}       color={getColor(latest?.income_statement.net_income?.raw)} />
                 </div>
             </SectionCard>
 
-            <SectionCard title="재무상태표" color="#60a5fa">
+            <SectionCard title="재무상태표" color="#3b82f6"> {/* blue-500 */}
                 <BalanceChart data={latest?.balance_sheet} />
-                <div style={{ marginTop: 12 }}>
+                <div className="mt-3">
                     <FinRow label="자산총계" value={latest?.balance_sheet.total_assets?.표시} />
                     <FinRow label="부채총계" value={latest?.balance_sheet.total_liabilities?.표시} />
                     <FinRow label="자본총계" value={latest?.balance_sheet.total_equity?.표시} />
@@ -480,9 +463,9 @@ function FinancialTab({ data, baseYear }: { data: Record<string, YearFinancial>;
                 </div>
             </SectionCard>
 
-            <SectionCard title="현금흐름표 (3개년)" color="#f59e0b">
+            <SectionCard title="현금흐름표 (3개년)" color="#f59e0b"> {/* amber-500 */}
                 <CashFlowChart data={data} years={years} />
-                <div style={{ marginTop: 12 }}>
+                <div className="mt-3">
                     <FinRow label="영업활동 CF" value={latest?.cash_flow.operating_cf?.표시} color={getColor(latest?.cash_flow.operating_cf?.raw)} />
                     <FinRow label="투자활동 CF" value={latest?.cash_flow.investing_cf?.표시} color={getColor(latest?.cash_flow.investing_cf?.raw)} />
                     <FinRow label="재무활동 CF" value={latest?.cash_flow.financing_cf?.표시} color={getColor(latest?.cash_flow.financing_cf?.raw)} />
@@ -511,27 +494,27 @@ function IncomeChart({ data, years }: { data: Record<string, YearFinancial>; yea
             data: {
                 labels: years,
                 datasets: [
-                    { label: '매출액',   data: revenue,  backgroundColor: '#1e40af' },
-                    { label: '영업이익', data: opProfit, backgroundColor: '#00cc44' },
-                    { label: '순이익',   data: net,      backgroundColor: '#60a5fa' },
+                    { label: '매출액',   data: revenue,  backgroundColor: '#1e40af' }, // blue-800
+                    { label: '영업이익', data: opProfit, backgroundColor: '#22c55e' }, // green-500
+                    { label: '순이익',   data: net,      backgroundColor: '#3b82f6' }, // blue-500
                 ],
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    legend: { labels: { color: '#4b5563', font: { size: 11 } } }, // gray-700
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}${unit}` } },
                 },
                 scales: {
-                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
-                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#1f2937' } },
+                    x: { ticks: { color: '#4b5563' }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
+                    y: { ticks: { color: '#4b5563', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
                 },
             },
         });
         return () => { chart.destroy(); };
     }, [data, years]);
 
-    return <canvas ref={canvasRef} style={{ width: '100%' }} />;
+    return <canvas ref={canvasRef} className="w-full" />;
 }
 
 function BalanceChart({ data }: { data?: BalanceSheet }) {
@@ -548,14 +531,14 @@ function BalanceChart({ data }: { data?: BalanceSheet }) {
                 labels: ['부채', '자본'],
                 datasets: [{
                     data: [getChartValue(data.total_liabilities), getChartValue(data.total_equity)],
-                    backgroundColor: ['#f87171', '#00cc44'],
-                    borderColor: '#111827', borderWidth: 2,
+                    backgroundColor: ['#ef4444', '#22c55e'], // red-500, green-500
+                    borderColor: '#ffffff', borderWidth: 2, // white
                 }],
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    legend: { labels: { color: '#4b5563', font: { size: 11 } } }, // gray-700
                     tooltip: { callbacks: { label: (ctx) => `${ctx.label}: ${Number(ctx.raw).toLocaleString()}` } },
                 },
             },
@@ -563,7 +546,7 @@ function BalanceChart({ data }: { data?: BalanceSheet }) {
         return () => { chart.destroy(); };
     }, [data]);
 
-    return <div style={{ maxWidth: 200, margin: '0 auto' }}><canvas ref={canvasRef} /></div>;
+    return <div className="max-w-xs mx-auto"><canvas ref={canvasRef} /></div>;
 }
 
 function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; years: string[] }) {
@@ -580,27 +563,27 @@ function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; y
             data: {
                 labels: years,
                 datasets: [
-                    { label: '영업활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.operating_cf)), backgroundColor: '#f59e0b' },
-                    { label: '투자활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.investing_cf)), backgroundColor: '#60a5fa' },
-                    { label: '재무활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.financing_cf)), backgroundColor: '#a78bfa' },
+                    { label: '영업활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.operating_cf)), backgroundColor: '#f59e0b' }, // amber-500
+                    { label: '투자활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.investing_cf)), backgroundColor: '#3b82f6' }, // blue-500
+                    { label: '재무활동', data: years.map((y) => getChartValue(data[y]?.cash_flow.financing_cf)), backgroundColor: '#a78bfa' }, // violet-400
                 ],
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    legend: { labels: { color: '#4b5563', font: { size: 11 } } }, // gray-700
                     tooltip: { callbacks: { label: (ctx) => `${ctx.dataset.label}: ${Number(ctx.raw).toLocaleString()}${unit}` } },
                 },
                 scales: {
-                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
-                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#1f2937' } },
+                    x: { ticks: { color: '#4b5563' }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
+                    y: { ticks: { color: '#4b5563', callback: (v) => `${Number(v).toLocaleString()}${unit}` }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
                 },
             },
         });
         return () => { chart.destroy(); };
     }, [data, years]);
 
-    return <canvas ref={canvasRef} style={{ width: '100%' }} />;
+    return <canvas ref={canvasRef} className="w-full" />;
 }
 
 // ══════════════════════════════════════════════════════════
@@ -609,37 +592,37 @@ function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; y
 function StockTab({ data }: { data?: StockData }) {
     if (!data) return <Empty text="주가 데이터를 불러올 수 없습니다" />;
 
-    const changeColor = data.change_pct >= 0 ? '#00cc44' : '#f87171';
+    const changeColor = data.change_pct >= 0 ? '#22c55e' : '#ef4444'; // green-500, red-500
     const changeSign  = data.change_pct >= 0 ? '+' : '';
-    const trendColor  = data.trend_5d === '상승' ? '#00cc44' : data.trend_5d === '하락' ? '#f87171' : '#f59e0b';
-    const volColor    = data.volume_trend === '증가' ? '#00cc44' : data.volume_trend === '감소' ? '#f87171' : '#f59e0b';
+    const trendColor  = data.trend_5d === '상승' ? '#22c55e' : data.trend_5d === '하락' ? '#ef4444' : '#f59e0b'; // green-500, red-500, amber-500
+    const volColor    = data.volume_trend === '증가' ? '#22c55e' : data.volume_trend === '감소' ? '#ef4444' : '#f59e0b'; // green-500, red-500, amber-500
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ padding: 20, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f', textAlign: 'center' }}>
-                {data.ticker && <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 4px' }}>{data.ticker}</p>}
-                <p style={{ color: '#fff', fontSize: 32, fontWeight: 'bold', margin: '0 0 4px' }}>
+        <div className="flex flex-col gap-4">
+            <div className="p-5 bg-white rounded-lg shadow border border-gray-200 text-center">
+                {data.ticker && <p className="text-gray-600 text-xs mb-1">{data.ticker}</p>}
+                <p className="text-3xl font-bold text-gray-900 mb-1">
                     {data.current_price.toLocaleString()}
                 </p>
-                <p style={{ color: changeColor, fontSize: 18, fontWeight: 'bold', margin: 0 }}>
+                <p style={{ color: changeColor }} className="text-lg font-bold mb-0">
                     {changeSign}{data.change_pct}%
                 </p>
-                <p style={{ color: '#6b7280', fontSize: 12, margin: '4px 0 0' }}>전일 {data.prev_close.toLocaleString()}</p>
+                <p className="text-gray-600 text-xs mt-1">전일 {data.prev_close.toLocaleString()}</p>
             </div>
 
-            <SectionCard title="최근 5거래일 (15분봉)" color="#f59e0b">
-                <FinRow label="5일 고가"   value={data.high_5d.toLocaleString()} color="#f87171" />
-                <FinRow label="5일 저가"   value={data.low_5d.toLocaleString()}  color="#00cc44" />
+            <SectionCard title="최근 5거래일 (15분봉)" color="#f59e0b"> {/* amber-500 */}
+                <FinRow label="5일 고가"   value={data.high_5d.toLocaleString()} color="#ef4444" /> {/* red-500 */}
+                <FinRow label="5일 저가"   value={data.low_5d.toLocaleString()}  color="#22c55e" /> {/* green-500 */}
                 <FinRow label="5일 추세"   value={data.trend_5d}   color={trendColor} />
                 <FinRow label="거래량 추세" value={data.volume_trend} color={volColor} />
             </SectionCard>
 
-            <SectionCard title="52주 범위" color="#a78bfa">
-                <FinRow label="52주 고가" value={data.week52_high?.toLocaleString() ?? '-'} color="#f87171" />
-                <FinRow label="52주 저가" value={data.week52_low?.toLocaleString()  ?? '-'} color="#00cc44" />
+            <SectionCard title="52주 범위" color="#a78bfa"> {/* violet-400 */}
+                <FinRow label="52주 고가" value={data.week52_high?.toLocaleString() ?? '-'} color="#ef4444" /> {/* red-500 */}
+                <FinRow label="52주 저가" value={data.week52_low?.toLocaleString()  ?? '-'} color="#22c55e" /> {/* green-500 */}
                 {data.week52_high && data.week52_low && (
-                    <div style={{ marginTop: 12 }}>
-                        <div style={{ background: '#1f2937', borderRadius: 4, height: 6, position: 'relative' }}>
+                    <div className="mt-3">
+                        <div className="bg-gray-200 rounded-md h-1.5 relative">
                             <div style={{
                                 position: 'absolute',
                                 left: `${((data.current_price - data.week52_low) / (data.week52_high - data.week52_low)) * 100}%`,
@@ -648,23 +631,23 @@ function StockTab({ data }: { data?: StockData }) {
                                 background: '#a78bfa', border: '2px solid #fff',
                             }} />
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4 }}>
-                            <span style={{ color: '#6b7280', fontSize: 11 }}>{data.week52_low.toLocaleString()}</span>
-                            <span style={{ color: '#6b7280', fontSize: 11 }}>{data.week52_high.toLocaleString()}</span>
+                        <div className="flex justify-between mt-1">
+                            <span className="text-gray-600 text-xs">{data.week52_low.toLocaleString()}</span>
+                            <span className="text-gray-600 text-xs">{data.week52_high.toLocaleString()}</span>
                         </div>
                     </div>
                 )}
             </SectionCard>
 
             {data.market_cap_억원 && (
-                <SectionCard title="시가총액" color="#888">
-                    <p style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 'bold', margin: 0, textAlign: 'center' }}>
+                <SectionCard title="시가총액" color="#6b7280"> {/* gray-600 */}
+                    <p className="text-lg font-bold text-gray-900 text-center mb-0">
                         {data.market_cap_억원.toLocaleString()}억원
                     </p>
                 </SectionCard>
             )}
 
-            <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'center', margin: 0 }}>
+            <p className="text-gray-600 text-xs text-center mt-0">
                 15분봉 데이터 · 실시간이 아닐 수 있습니다
             </p>
         </div>
@@ -677,12 +660,12 @@ function StockTab({ data }: { data?: StockData }) {
 function DisclosureTab({ data }: { data: Disclosure[] }) {
     if (!data.length) return <Empty text="최근 1년간 주요 공시가 없습니다" />;
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2">
             {data.map((d) => (
-                <div key={d.rcept_no} style={{ padding: '12px 14px', background: '#111827', borderRadius: 8, border: '1px solid #1f2937' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-                        <p style={{ color: '#e2e8f0', fontSize: 13, margin: 0, flex: 1 }}>{d.title}</p>
-                        <span style={{ color: '#6b7280', fontSize: 11, whiteSpace: 'nowrap' }}>{formatDisclosureDate(d.date)}</span>
+                <div key={d.rcept_no} className="p-3.5 bg-white rounded-lg border border-gray-200">
+                    <div className="flex justify-between items-start gap-2">
+                        <p className="text-gray-800 text-sm mb-0 flex-1">{d.title}</p>
+                        <span className="text-gray-600 text-xs whitespace-nowrap">{formatDisclosureDate(d.date)}</span>
                     </div>
                 </div>
             ))}
@@ -697,17 +680,17 @@ function ShareholderTab({ data }: { data: Shareholder[] }) {
     if (!data || !data.length) return <Empty text="주주 현황 정보가 없습니다" />;
     const filtered = data.filter((s) => s.name && s.name.trim() !== '계');
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="flex flex-col gap-2">
             {filtered.map((s, i) => (
-                <div key={i} style={{ padding: '12px 14px', background: '#111827', borderRadius: 8, border: '1px solid #1f2937' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={i} className="p-3.5 bg-white rounded-lg border border-gray-200">
+                    <div className="flex justify-between items-center">
                         <div>
-                            <p style={{ color: '#fff', fontSize: 14, margin: '0 0 2px', fontWeight: 'bold' }}>{s.name}</p>
-                            <p style={{ color: '#6b7280', fontSize: 12, margin: 0 }}>{s.relation}</p>
+                            <p className="text-base font-bold text-gray-900 mb-0.5">{s.name}</p>
+                            <p className="text-gray-600 text-sm mb-0">{s.relation}</p>
                         </div>
-                        <div style={{ textAlign: 'right' }}>
-                            <p style={{ color: '#60a5fa', fontSize: 16, margin: '0 0 2px', fontWeight: 'bold' }}>{s.ratio}%</p>
-                            <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>{Number(s.shares?.replace(/,/g, '')).toLocaleString()}주</p>
+                        <div className="text-right">
+                            <p className="text-blue-600 text-lg font-bold mb-0.5">{s.ratio}%</p>
+                            <p className="text-gray-600 text-xs mb-0">{Number(s.shares?.replace(/,/g, '')).toLocaleString()}주</p>
                         </div>
                     </div>
                 </div>
@@ -735,19 +718,19 @@ function DividendTab({ data }: { data: Dividend[] }) {
                 datasets: [{
                     label: '배당금 총액 (백만원)',
                     data: sorted.map((d) => d.total_dividend ? Number(d.total_dividend.replace(/,/g, '')) : 0),
-                    borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)',
+                    borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)', // violet-400
                     pointBackgroundColor: '#a78bfa', tension: 0.3, fill: true,
                 }],
             },
             options: {
                 responsive: true,
                 plugins: {
-                    legend: { labels: { color: '#9ca3af', font: { size: 11 } } },
+                    legend: { labels: { color: '#4b5563', font: { size: 11 } } }, // gray-700
                     tooltip: { callbacks: { label: (ctx) => `배당금: ${Number(ctx.raw).toLocaleString()}백만원` } },
                 },
                 scales: {
-                    x: { ticks: { color: '#9ca3af' }, grid: { color: '#1f2937' } },
-                    y: { ticks: { color: '#9ca3af', callback: (v) => `${Number(v).toLocaleString()}` }, grid: { color: '#1f2937' } },
+                    x: { ticks: { color: '#4b5563' }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
+                    y: { ticks: { color: '#4b5563', callback: (v) => `${Number(v).toLocaleString()}` }, grid: { color: '#e5e7eb' } }, // gray-700, gray-200
                 },
             },
         });
@@ -757,12 +740,12 @@ function DividendTab({ data }: { data: Dividend[] }) {
     if (!data.length) return <Empty text="배당 현황 정보가 없습니다" />;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <SectionCard title="배당금 추이" color="#a78bfa">
-                <canvas ref={canvasRef} style={{ width: '100%' }} />
+        <div className="flex flex-col gap-4">
+            <SectionCard title="배당금 추이" color="#a78bfa"> {/* violet-400 */}
+                <canvas ref={canvasRef} className="w-full" />
             </SectionCard>
             {[...data].sort((a, b) => Number(b.year) - Number(a.year)).map((d) => (
-                <SectionCard key={d.year} title={`${d.year}년 배당`} color="#a78bfa">
+                <SectionCard key={d.year} title={`${d.year}년 배당`} color="#a78bfa"> {/* violet-400 */}
                     <FinRow label="배당금 총액" value={d.total_dividend ? `${Number(d.total_dividend.replace(/,/g, '')).toLocaleString()}백만원` : '-'} />
                     <FinRow label="배당 성향"   value={d.dividend_ratio  ? `${d.dividend_ratio}%`  : '-'} />
                     <FinRow label="배당 수익률" value={d.dividend_yield  ? `${d.dividend_yield}%`  : '-'} />
@@ -782,48 +765,48 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
     const { score } = insight;
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div style={{ padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 14 }}>종합 점수</h4>
-                    <span style={{ color: '#fff', fontSize: 28, fontWeight: 'bold' }}>{score.total}점</span>
+        <div className="flex flex-col gap-4">
+            <div className="p-4 bg-white rounded-lg shadow border border-gray-200">
+                <div className="flex justify-between items-center mb-3">
+                    <h4 className="text-blue-600 text-base font-semibold mb-0">종합 점수</h4>
+                    <span className="text-3xl font-bold text-gray-900">{score.total}점</span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <ScoreBar label="수익성"  value={score.profitability} max={25} color="#00cc44" />
-                    <ScoreBar label="안정성"  value={score.stability}    max={25} color="#60a5fa" />
-                    <ScoreBar label="성장성"  value={score.growth}       max={25} color="#f59e0b" />
-                    <ScoreBar label="현금흐름" value={score.cashflow}    max={25} color="#a78bfa" />
+                <div className="grid grid-cols-2 gap-2">
+                    <ScoreBar label="수익성"  value={score.profitability} max={25} color="#22c55e" /> {/* green-500 */}
+                    <ScoreBar label="안정성"  value={score.stability}    max={25} color="#3b82f6" /> {/* blue-500 */}
+                    <ScoreBar label="성장성"  value={score.growth}       max={25} color="#f59e0b" /> {/* amber-500 */}
+                    <ScoreBar label="현금흐름" value={score.cashflow}    max={25} color="#a78bfa" /> {/* violet-400 */}
                 </div>
             </div>
 
-            <SectionCard title="한줄 요약"        color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.summary}</p></SectionCard>
-            <SectionCard title="지금 섹터 분위기"  color="#f59e0b"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.sector_trend}</p></SectionCard>
-            <SectionCard title="수익성"           color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.profitability}</p></SectionCard>
-            <SectionCard title="안정성"           color="#60a5fa"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.stability}</p></SectionCard>
-            <SectionCard title="성장성"           color="#f59e0b"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.growth}</p></SectionCard>
-            <SectionCard title="긍정 포인트"       color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.positive}</p></SectionCard>
+            <SectionCard title="한줄 요약"        color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.summary}</p></SectionCard>
+            <SectionCard title="지금 섹터 분위기"  color="#f59e0b"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.sector_trend}</p></SectionCard>
+            <SectionCard title="수익성"           color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.profitability}</p></SectionCard>
+            <SectionCard title="안정성"           color="#3b82f6"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.stability}</p></SectionCard>
+            <SectionCard title="성장성"           color="#f59e0b"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.growth}</p></SectionCard>
+            <SectionCard title="긍정 포인트"       color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.positive}</p></SectionCard>
 
             {insight.price_analysis && (
-                <SectionCard title="📈 주가 흐름 분석" color="#a78bfa">
-                    <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.price_analysis}</p>
+                <SectionCard title="📈 주가 흐름 분석" color="#a78bfa"> {/* violet-400 */}
+                    <p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.price_analysis}</p>
                 </SectionCard>
             )}
 
-            <SectionCard title="리스크" color="#f87171"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.risk}</p></SectionCard>
+            <SectionCard title="리스크" color="#ef4444"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.risk}</p></SectionCard>
 
             {news && news.length > 0 && (
-                <SectionCard title="관련 뉴스" color="#888">
+                <SectionCard title="관련 뉴스" color="#6b7280"> {/* gray-600 */}
                     {news.map((n, i) => (
-                        <div key={i} style={{ padding: '10px 0', borderBottom: '1px solid #1f2937' }}>
-                            <p style={{ color: '#e2e8f0', fontSize: 13, margin: '0 0 4px' }}>{n.title}</p>
-                            <p style={{ color: '#6b7280', fontSize: 11, margin: 0 }}>{n.pubDate.slice(0, 16)}</p>
+                        <div key={i} className="py-2.5 border-b border-gray-200 last:border-b-0">
+                            <p className="text-gray-800 text-sm mb-1">{n.title}</p>
+                            <p className="text-gray-600 text-xs mb-0">{n.pubDate.slice(0, 16)}</p>
                         </div>
                     ))}
                 </SectionCard>
             )}
 
-            <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'center', margin: 0 }}>
-                본 인사이트는 AI 생성 참고용입니다. 투자 결정의 책임은 본인에게 있습니다.
+            <p className="text-gray-500 text-xs text-center mt-0">
+                본 인사이트는 AI 생성 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
             </p>
         </div>
     );
@@ -835,13 +818,13 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
 function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
     const pct = Math.round((value / max) * 100);
     return (
-        <div style={{ background: '#111827', borderRadius: 8, padding: '10px 12px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ color: '#9ca3af', fontSize: 12 }}>{label}</span>
-                <span style={{ color, fontSize: 12, fontWeight: 'bold' }}>{value}/{max}</span>
+        <div className="bg-gray-50 rounded-lg p-2.5">
+            <div className="flex justify-between mb-1.5">
+                <span className="text-gray-600 text-xs">{label}</span>
+                <span style={{ color }} className="text-xs font-bold">{value}/{max}</span>
             </div>
-            <div style={{ background: '#1f2937', borderRadius: 4, height: 6 }}>
-                <div style={{ background: color, width: `${pct}%`, height: '100%', borderRadius: 4, transition: 'width 0.3s' }} />
+            <div className="bg-gray-200 rounded-md h-1.5">
+                <div style={{ background: color, width: `${pct}%` }} className="h-full rounded-md transition-all duration-300" />
             </div>
         </div>
     );
@@ -849,8 +832,8 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
 
 function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
-        <div style={{ padding: 16, background: '#111827', borderRadius: 8, border: `1px solid ${color}33` }}>
-            <h4 style={{ color, margin: '0 0 12px', fontSize: 14 }}>{title}</h4>
+        <div className="p-4 bg-white rounded-lg shadow border border-gray-200">
+            <h4 style={{ color }} className="text-base font-semibold mb-3">{title}</h4>
             {children}
         </div>
     );
@@ -858,9 +841,9 @@ function SectionCard({ title, color, children }: { title: string; color: string;
 
 function FinRow({ label, value, color }: { label: string; value?: string; color?: string }) {
     return (
-        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #1f2937' }}>
-            <span style={{ color: '#6b7280', fontSize: 13 }}>{label}</span>
-            <span style={{ color: color ?? '#e2e8f0', fontSize: 13, fontWeight: 'bold' }}>{value ?? '-'}</span>
+        <div className="flex justify-between py-1.5 border-b border-gray-200 last:border-b-0">
+            <span className="text-gray-600 text-sm">{label}</span>
+            <span style={{ color: color ?? '#1f2937' }} className="text-sm font-semibold">{value ?? '-'}</span>
         </div>
     );
 }
@@ -868,16 +851,16 @@ function FinRow({ label, value, color }: { label: string; value?: string; color?
 function InfoRow({ label, value }: { label: string; value: string }) {
     return (
         <div>
-            <p style={{ color: '#6b7280', fontSize: 11, margin: '0 0 2px' }}>{label}</p>
-            <p style={{ color: '#e2e8f0', fontSize: 13, margin: 0 }}>{value}</p>
+            <p className="text-gray-500 text-xs mb-0.5">{label}</p>
+            <p className="text-gray-800 text-sm mt-0">{value}</p>
         </div>
     );
 }
 
 function Empty({ text }: { text: string }) {
     return (
-        <div style={{ textAlign: 'center', padding: '40px 0' }}>
-            <p style={{ color: '#6b7280', fontSize: 14, margin: 0 }}>{text}</p>
+        <div className="text-center py-10">
+            <p className="text-gray-500 text-sm">{text}</p>
         </div>
     );
 }

@@ -9,6 +9,7 @@ router.get('/autocomplete',   fc.autoComplete);
 router.get('/stock',          fc.stock);
 router.get('/analyze',        fc.analyze);        // 비로그인도 분석 가능 (히스토리만 미저장)
 router.get('/stocks/prices',  fc.getBatchPrices); // 주가는 공개 데이터
+router.get('/exchange-rate',  fc.exchangeRate);   // 환율 공개 데이터
 
 // 인증 필요
 router.get   ('/stocks',           authenticationToken, fc.getStocks);

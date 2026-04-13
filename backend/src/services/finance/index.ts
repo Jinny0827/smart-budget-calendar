@@ -14,8 +14,8 @@ import { getStockPrice, getUsStockPrice } from './stock';
 import { generateStockInsight } from './groqFinance';
 import StockCache from '../../models/StockCache';
 
-const ANALYZE_TTL    = 60 * 60 * 1000; // 1시간
-const CACHE_VERSION  = 2;              // 로직 변경 시 올려서 기존 캐시 일괄 무효화
+const ANALYZE_TTL   = 60 * 60 * 1000;
+const CACHE_VERSION = 4;
 
 export async function analyzeCompany(query: string, market: string, year: string, force = false) {
     const cacheKey = `analyze:v${CACHE_VERSION}:${query}:${market}:${year}`;
@@ -29,22 +29,39 @@ export async function analyzeCompany(query: string, market: string, year: string
 
     if (market === 'us') {
         const cik = await getCik(query);
-        if (!cik) throw new Error('미국 상장 기업을 찾을 수 없습니다');
 
-        const [companyInfo, financial, disclosures, stockData] = await Promise.all([
-            getUsCompanyInfo(cik),
-            getUsFinancialStatementsMulti(cik, year),
-            getUsDisclosures(cik),
-            getUsStockPrice(query),
-        ]) as any[];
-        const sectorNews: any[] = [];
+        let companyInfo, financial, disclosures, stockData, insight;
 
-        const insight = await generateStockInsight(companyInfo, financial, disclosures as any[], sectorNews, stockData);
+        if (cik) {
+            [companyInfo, financial, disclosures, stockData] = await Promise.all([
+                getUsCompanyInfo(cik),
+                getUsFinancialStatementsMulti(cik, year),
+                getUsDisclosures(cik),
+                getUsStockPrice(query),
+            ]);
+            const sectorNews: any[] = [];
+            insight = await generateStockInsight(companyInfo, financial, disclosures as any[], sectorNews, stockData);
+
+        } else {
+            stockData = await getUsStockPrice(query);
+
+            if (!stockData) throw new Error('종목 정보를 찾을 수 없습니다');
+
+            companyInfo = {
+                corp_name: query,
+                ticker:    (stockData as any).ticker || query,
+                market:    'US',
+            };
+            financial   = {};
+            disclosures = [];
+            insight     = null;
+        }
+
         result = {
             company_info: companyInfo,
             financial,
             disclosures,
-            stock_data:  stockData,
+            stock_data:   stockData,
             insight,
         };
 
@@ -61,9 +78,8 @@ export async function analyzeCompany(query: string, market: string, year: string
             getDividendInfo(corpCode),
         ]) as any[];
 
-        // corp_cls로 거래소 확정: 'Y'=KOSPI(.KS), 'K'=KOSDAQ(.KQ)
-        const corpCls  = (companyInfo as any)?.corp_cls;
-        const exchange = corpCls === 'Y' ? 'KS' : corpCls === 'K' ? 'KQ' : undefined;
+        const corpCls   = (companyInfo as any)?.corp_cls;
+        const exchange  = corpCls === 'Y' ? 'KS' : corpCls === 'K' ? 'KQ' : undefined;
         const stockData = stockCode ? await getStockPrice(stockCode, exchange) : null;
 
         const sectorNews = await getSectorNews((companyInfo as any)?.induty_code ?? '', (companyInfo as any)?.corp_name ?? query);
@@ -104,7 +120,7 @@ export async function autocomplete(query: string, market: string) {
     }
 }
 
-export { getStockPrice, getUsStockPrice, getBatchStockPrices } from './stock';
+export { getStockPrice, getUsStockPrice, getBatchStockPrices, getExchangeRate } from './stock';
 export { generatePortfolioInsight } from './groqFinance';
 export { loadCikMap } from './sec';
 export { loadCorpList } from './dart';

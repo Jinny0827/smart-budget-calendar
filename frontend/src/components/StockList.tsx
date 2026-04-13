@@ -11,11 +11,12 @@ interface Props {
 }
 
 export default function StockList({ onRegisterClick, refreshKey }: Props) {
-    const [tab, setTab]         = useState<'portfolio' | 'watchlist'>('portfolio');
-    const [stocks, setStocks]   = useState<UserStock[]>([]);
-    const [prices, setPrices]   = useState<Record<string, BatchPrice>>({});
-    const [loading, setLoading] = useState(false);
-    const [error, setError]     = useState<string | null>(null);
+    const [tab, setTab]           = useState<'portfolio' | 'watchlist'>('portfolio');
+    const [stocks, setStocks]     = useState<UserStock[]>([]);
+    const [prices, setPrices]     = useState<Record<string, BatchPrice>>({});
+    const [usdKrw, setUsdKrw]     = useState<number | null>(null);
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState<string | null>(null);
 
     // 종목 목록 조회
     const fetchStocks = useCallback(async () => {
@@ -59,6 +60,14 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
         fetchStocks();
     }, [fetchStocks, refreshKey]);
 
+    // 환율 조회 (마운트 1회)
+    useEffect(() => {
+        fetch(`${API_BASE}/exchange-rate`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.usdKrw) setUsdKrw(d.usdKrw); })
+            .catch(() => {});
+    }, []);
+
     // 종목 삭제
     const handleRemove = async (id: string) => {
         try {
@@ -77,23 +86,18 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
     const hasPortfolio   = stocks.some(s => s.type === 'portfolio');
 
     return (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div className="flex flex-col gap-4 h-full">
 
             {/* 탭 + 등록 버튼 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', background: '#111827', borderRadius: 8, padding: 4, gap: 4 }}>
+            <div className="flex justify-between items-center">
+                <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
                     {([['portfolio', '💼 보유'], ['watchlist', '👀 관심']] as const).map(([key, label]) => (
                         <button
                             key={key}
                             onClick={() => setTab(key)}
-                            style={{
-                                padding: '7px 16px',
-                                background: tab === key ? '#1d4ed8' : 'transparent',
-                                color: tab === key ? '#fff' : '#6b7280',
-                                border: 'none', borderRadius: 6,
-                                fontSize: 13, fontWeight: tab === key ? 'bold' : 'normal',
-                                cursor: 'pointer',
-                            }}
+                            className={`px-4 py-1.5 text-sm rounded-md ${
+                                tab === key ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-gray-200'
+                            }`}
                         >
                             {label}
                         </button>
@@ -101,12 +105,7 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
                 </div>
                 <button
                     onClick={onRegisterClick}
-                    style={{
-                        background: '#1d4ed8', color: '#fff',
-                        border: 'none', borderRadius: 8,
-                        padding: '8px 14px', fontSize: 13,
-                        fontWeight: 'bold', cursor: 'pointer',
-                    }}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
                 >
                     + 종목 등록
                 </button>
@@ -114,31 +113,23 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
 
             {/* 종목 카드 목록 */}
             {loading ? (
-                <p style={{ color: '#6b7280', fontSize: 13, textAlign: 'center' }}>불러오는 중...</p>
+                <p className="text-gray-500 text-sm text-center py-8">불러오는 중...</p>
             ) : error ? (
-                <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>
+                <p className="text-red-500 text-sm">{error}</p>
             ) : filtered.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: '24px 0' }}>
-                    <p style={{ color: '#6b7280', fontSize: 14 }}>
+                <div className="text-center py-10">
+                    <p className="text-gray-500 text-sm">
                         {tab === 'portfolio' ? '보유 종목이 없어요' : '관심 종목이 없어요'}
                     </p>
                     <button
                         onClick={onRegisterClick}
-                        style={{
-                            marginTop: 8, color: '#60a5fa',
-                            background: 'none', border: 'none',
-                            cursor: 'pointer', fontSize: 13,
-                        }}
+                        className="mt-2 text-blue-600 hover:underline text-sm"
                     >
                         종목 등록하기
                     </button>
                 </div>
             ) : (
-                <div style={{
-                    display: 'grid',
-                    gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
-                    gap: 12,
-                }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {filtered.map(stock => {
                         const symbol = stock.market === 'kr'
                             ? `${stock.stock_code}${stock.suffix ?? '.KS'}`
@@ -148,6 +139,7 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
                                 key={stock._id}
                                 stock={stock}
                                 price={prices[symbol]}
+                                usdKrw={usdKrw ?? undefined}
                                 onRemove={handleRemove}
                             />
                         );
@@ -157,7 +149,9 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
 
             {/* 포트폴리오 AI 인사이트 */}
             {tab === 'portfolio' && (
-                <PortfolioInsight hasPortfolio={hasPortfolio} />
+                <div className="mt-auto pt-4">
+                    <PortfolioInsight hasPortfolio={hasPortfolio} />
+                </div>
             )}
         </div>
     );

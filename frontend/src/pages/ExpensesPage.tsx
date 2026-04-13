@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom';
-import { logout, getCurrentUser } from '../services/auth-service';
 import {useEffect, useState} from "react";
 import type { Expense, Schedule } from "../types";
 import {
@@ -28,7 +27,6 @@ const emptyForm = {
 
 function ExpensesPage() {
     const navigate = useNavigate();
-    const user = getCurrentUser();
 
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [schedules, setSchedules] = useState<Schedule[]>([]);
@@ -71,11 +69,6 @@ function ExpensesPage() {
     useEffect(() => {
         fetchExpenses();
     }, [filterCategory]);
-
-    const handleLogout = () => {
-        logout();
-        navigate('/login');
-    };
 
     // 추가 버튼
     const handleOpenAdd = () => {
@@ -173,171 +166,132 @@ function ExpensesPage() {
 
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* 헤더 */}
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">스마트 가계부</h1>
-                    <div className="flex items-center gap-2">
-                        <span className="text-gray-700 hidden sm:inline">{user?.name}님</span>
-                        <button
-                            onClick={handleLogout}
-                            className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+        <>
+            <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
+                    <h2 className="text-2xl font-bold">지출 관리</h2>
+
+                    <div className="flex items-center gap-3">
+                        {/* 카테고리 필터 */}
+                        <select
+                            value={filterCategory}
+                            onChange={(e) => setFilterCategory(e.target.value)}
+                            className="px-3 py-2 border rounded text-sm"
                         >
-                            로그아웃
-                        </button>
-                    </div>
-                </div>
-            </header>
-
-            {/* 네비게이션 */}
-            <nav className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex gap-2 py-4 overflow-x-auto whitespace-nowrap">
-                        <button onClick={() => navigate('/dashboard')} className="px-4 py-2 text-gray-600 hover:text-blue-600">
-                            대시보드
-                        </button>
-                        <button onClick={() => navigate('/schedules')} className="px-4 py-2 text-gray-600 hover:text-blue-600">
-                            일정 관리
-                        </button>
-                        <button onClick={() => navigate('/expenses')} className="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">
-                            지출 관리
-                        </button>
-                        <button onClick={() => navigate('/board')} className="px-4 py-2 text-gray-600 hover:text-blue-600">
-                            게시판
-                        </button>
-                    </div>
-                </div>
-            </nav>
-
-            {/* 메인 콘텐츠 */}
-            <main className="max-w-7xl mx-auto px-4 py-8">
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
-                        <h2 className="text-2xl font-bold">지출 관리</h2>
-
-                        <div className="flex items-center gap-3">
-                            {/* 카테고리 필터 */}
-                            <select
-                                value={filterCategory}
-                                onChange={(e) => setFilterCategory(e.target.value)}
-                                className="px-3 py-2 border rounded text-sm"
-                            >
-                                <option value="">전체 카테고리</option>
-                                <optgroup label="지출">
-                                    {EXPENSE_CATEGORIES.map((cat) => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </optgroup>
-                                <optgroup label="수입">
-                                    {INCOME_CATEGORIES.map((cat) => (
-                                        <option key={cat} value={cat}>{cat}</option>
-                                    ))}
-                                </optgroup>
-                            </select>
-
-                            <button
-                                onClick={() => { setImportResult(''); setShowImportModal(true); }}
-                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
-                            >
-                                📥 카드 가져오기
-                            </button>
-                            <button
-                                onClick={handleOpenAdd}
-                                className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                            >
-                                + 내역 추가
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* 합계 */}
-                    {expenses.length > 0 && (
-                        <div className="mb-4 p-3 bg-blue-50 rounded-lg flex flex-wrap justify-between items-center gap-2">
-                            <span className="text-blue-700 font-medium">총 {expenses.length}건</span>
-                            <div className="flex gap-4">
-                                <span className="text-green-600 font-semibold">수입 +{totalIncome.toLocaleString()}원</span>
-                                <span className="text-red-500 font-semibold">지출 -{totalExpense.toLocaleString()}원</span>
-                                <span className={`font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
-                                    잔액 {balance >= 0 ? '+' : ''}{balance.toLocaleString()}원
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
-
-                    {loading ? (
-                        <p className="text-gray-500 text-center py-8">로딩 중...</p>
-                    ) : expenses.length === 0 ? (
-                        <p className="text-gray-400 text-center py-8">등록된 지출이 없습니다.</p>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                <tr className="border-b bg-gray-50">
-                                    <th className="py-3 px-4 text-sm text-gray-600">날짜</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600">설명</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">유형</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">카테고리</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600 hidden lg:table-cell">연결 일정</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600 text-right">금액</th>
-                                    <th className="py-3 px-4 text-sm text-gray-600">관리</th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {expenses.map((expense) => (
-                                    <tr key={expense._id} className="border-b hover:bg-gray-50">
-                                        <td className="py-3 px-4 text-gray-600 text-sm">
-                                            {new Date(expense.date).toLocaleDateString('ko-KR')}
-                                        </td>
-                                        <td className="py-3 px-4 font-medium">{expense.description}</td>
-                                        <td className="py-3 px-4 hidden sm:table-cell">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                                                expense.type === 'income'
-                                                    ? 'bg-green-100 text-green-700'
-                                                    : 'bg-red-100 text-red-700'
-                                            }`}>
-                                                {expense.type === 'income' ? '수입' : '지출'}
-                                            </span>
-                                        </td>
-                                        <td className="py-3 px-4 hidden sm:table-cell">
-                                                <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                                    {expense.category}
-                                                </span>
-                                        </td>
-                                        <td className="py-3 px-4 text-gray-400 text-sm hidden lg:table-cell">
-                                            {expense.scheduleId
-                                                ? schedules.find((s) => s._id === expense.scheduleId)?.title || '-'
-                                                : '-'}
-                                        </td>
-                                        <td className={`py-3 px-4 text-right font-semibold ${
-                                            expense.type === 'income' ? 'text-green-500' : 'text-red-500'
-                                        }`}>
-                                            {expense.type === 'income' ? '+' : '-'}{expense.amount.toLocaleString()}원
-                                        </td>
-                                        <td className="py-3 px-4">
-                                            <button
-                                                onClick={() => handleOpenEdit(expense)}
-                                                className="mr-2 text-sm text-blue-500 hover:underline"
-                                            >
-                                                수정
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(expense._id)}
-                                                className="text-sm text-red-500 hover:underline"
-                                            >
-                                                삭제
-                                            </button>
-                                        </td>
-                                    </tr>
+                            <option value="">전체 카테고리</option>
+                            <optgroup label="지출">
+                                {EXPENSE_CATEGORIES.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
                                 ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    )}
+                            </optgroup>
+                            <optgroup label="수입">
+                                {INCOME_CATEGORIES.map((cat) => (
+                                    <option key={cat} value={cat}>{cat}</option>
+                                ))}
+                            </optgroup>
+                        </select>
+
+                        <button
+                            onClick={() => { setImportResult(''); setShowImportModal(true); }}
+                            className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                        >
+                            📥 카드 가져오기
+                        </button>
+                        <button
+                            onClick={handleOpenAdd}
+                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                        >
+                            + 내역 추가
+                        </button>
+                    </div>
                 </div>
-            </main>
+
+                {/* 합계 */}
+                {expenses.length > 0 && (
+                    <div className="mb-4 p-3 bg-blue-50 rounded-lg flex flex-wrap justify-between items-center gap-2">
+                        <span className="text-blue-700 font-medium">총 {expenses.length}건</span>
+                        <div className="flex gap-4">
+                            <span className="text-green-600 font-semibold">수입 +{totalIncome.toLocaleString()}원</span>
+                            <span className="text-red-500 font-semibold">지출 -{totalExpense.toLocaleString()}원</span>
+                            <span className={`font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                                잔액 {balance >= 0 ? '+' : ''}{balance.toLocaleString()}원
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+
+                {loading ? (
+                    <p className="text-gray-500 text-center py-8">로딩 중...</p>
+                ) : expenses.length === 0 ? (
+                    <p className="text-gray-400 text-center py-8">등록된 지출이 없습니다.</p>
+                ) : (
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left">
+                            <thead>
+                            <tr className="border-b bg-gray-50">
+                                <th className="py-3 px-4 text-sm text-gray-600">날짜</th>
+                                <th className="py-3 px-4 text-sm text-gray-600">설명</th>
+                                <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">유형</th>
+                                <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">카테고리</th>
+                                <th className="py-3 px-4 text-sm text-gray-600 hidden lg:table-cell">연결 일정</th>
+                                <th className="py-3 px-4 text-sm text-gray-600 text-right">금액</th>
+                                <th className="py-3 px-4 text-sm text-gray-600">관리</th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            {expenses.map((expense) => (
+                                <tr key={expense._id} className="border-b hover:bg-gray-50">
+                                    <td className="py-3 px-4 text-gray-600 text-sm">
+                                        {new Date(expense.date).toLocaleDateString('ko-KR')}
+                                    </td>
+                                    <td className="py-3 px-4 font-medium">{expense.description}</td>
+                                    <td className="py-3 px-4 hidden sm:table-cell">
+                                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                                            expense.type === 'income'
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-red-100 text-red-700'
+                                        }`}>
+                                            {expense.type === 'income' ? '수입' : '지출'}
+                                        </span>
+                                    </td>
+                                    <td className="py-3 px-4 hidden sm:table-cell">
+                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                                {expense.category}
+                                            </span>
+                                    </td>
+                                    <td className="py-3 px-4 text-gray-400 text-sm hidden lg:table-cell">
+                                        {expense.scheduleId
+                                            ? schedules.find((s) => s._id === expense.scheduleId)?.title || '-'
+                                            : '-'}
+                                    </td>
+                                    <td className={`py-3 px-4 text-right font-semibold ${
+                                        expense.type === 'income' ? 'text-green-500' : 'text-red-500'
+                                    }`}>
+                                        {expense.type === 'income' ? '+' : '-'}{expense.amount.toLocaleString()}원
+                                    </td>
+                                    <td className="py-3 px-4">
+                                        <button
+                                            onClick={() => handleOpenEdit(expense)}
+                                            className="mr-2 text-sm text-blue-500 hover:underline"
+                                        >
+                                            수정
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(expense._id)}
+                                            className="text-sm text-red-500 hover:underline"
+                                        >
+                                            삭제
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
+            </div>
 
             {/* 추가/수정 모달 */}
             {showModal && (
@@ -538,7 +492,7 @@ function ExpensesPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
 

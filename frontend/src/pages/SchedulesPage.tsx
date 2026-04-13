@@ -5,7 +5,6 @@ import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import type { View } from 'react-big-calendar';
 import { format, parse, startOfWeek, getDay } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { logout, getCurrentUser } from '../services/auth-service';
 import {
     getSchedules,
     createSchedule,
@@ -54,7 +53,6 @@ interface CalendarEvent {
 
 function SchedulesPage() {
     const navigate = useNavigate();
-    const user = getCurrentUser();
 
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -298,8 +296,6 @@ function SchedulesPage() {
         }
     };
 
-    const handleLogout = () => { logout(); window.location.href = '/login'; };
-
     const messages = {
         today: '오늘', previous: '◀', next: '▶',
         month: '월', week: '주', day: '일', agenda: '목록',
@@ -309,158 +305,130 @@ function SchedulesPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100">
-            {/* ─── 헤더 ───────────────────────────────────── */}
-            <header className="bg-white shadow">
-                <div className="max-w-7xl mx-auto px-4 py-4 flex flex-wrap justify-between items-center gap-2">
-                    <h1 className="text-2xl font-bold text-gray-900">스마트 가계부</h1>
-                    <div className="flex items-center gap-2">
-                        <span className="text-gray-700 hidden sm:inline">{user?.name}님</span>
-                        <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
-                            로그아웃
-                        </button>
-                    </div>
+        <>
+            {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+
+            <div className="bg-white p-6 rounded-lg shadow">
+                <div className="flex justify-between items-center mb-4">
+                    <h2 className="text-2xl font-bold">일정 관리</h2>
+                    <button
+                        onClick={() => openCreateModal(new Date())}
+                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                    >
+                        + 일정 추가
+                    </button>
                 </div>
-            </header>
 
-            {/* ─── 네비게이션 ─────────────────────────────── */}
-            <nav className="bg-white shadow-sm">
-                <div className="max-w-7xl mx-auto px-4">
-                    <div className="flex gap-2 py-4 overflow-x-auto whitespace-nowrap">
-                        <button onClick={() => navigate('/dashboard')} className="px-4 py-2 text-gray-600 hover:text-blue-600">대시보드</button>
-                        <button onClick={() => navigate('/schedules')} className="px-4 py-2 text-blue-600 border-b-2 border-blue-600 font-medium">일정 관리</button>
-                        <button onClick={() => navigate('/expenses')} className="px-4 py-2 text-gray-600 hover:text-blue-600">지출 관리</button>
-                        <button onClick={() => navigate('/board')} className="px-4 py-2 text-gray-600 hover:text-blue-600">게시판</button>
-                    </div>
+                {/* 범례 */}
+                <div className="flex flex-wrap gap-4 mb-4 text-xs text-gray-600">
+                    {CATEGORIES.map((cat) => (
+                        <span key={cat} className="flex items-center gap-1">
+                            <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] ?? DEFAULT_COLOR }} />
+                            {cat}
+                        </span>
+                    ))}
+                    <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#f0fdf4', border: '1px solid #22c55e' }} />
+                        수입
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fef2f2', border: '1px solid #ef4444' }} />
+                        지출
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fee2e2', border: '1px solid #ef4444' }} />
+                        공휴일/일요일
+                    </span>
+                    <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#eff6ff', border: '1px solid #3b82f6' }} />
+                        토요일
+                    </span>
                 </div>
-            </nav>
 
-            {/* ─── 메인 ───────────────────────────────────── */}
-            <main className="max-w-7xl mx-auto px-4 py-8">
-                {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
+                {loading ? (
+                    <div className="text-center py-20 text-gray-400">로딩 중...</div>
+                ) : (
+                    <Calendar
+                        localizer={localizer}
+                        events={events}
+                        startAccessor="start"
+                        endAccessor="end"
+                        style={{ height: 680 }}
+                        view={currentView}
+                        onView={setCurrentView}
+                        date={currentDate}
+                        onNavigate={setCurrentDate}
+                        selectable
+                        onSelectSlot={handleSelectSlot}
+                        onSelectEvent={handleSelectEvent}
+                        eventPropGetter={eventStyleGetter}
+                        messages={messages}
+                        culture="ko"
+                        popup
+                        popupOffset={10}
+                        components={{
+                            // ─── 날짜 셀 배경색 + 클릭 처리 ─────────────
+                            dateCellWrapper: ({ children, value }: { children: React.ReactNode; value: Date }) => {
+                                const dateStr = format(value, 'yyyy-MM-dd');
+                                const isSunday = value.getDay() === 0;
+                                const isSaturday = value.getDay() === 6;
+                                const isHoliday = holidaySet.has(dateStr);
 
-                <div className="bg-white p-6 rounded-lg shadow">
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-2xl font-bold">일정 관리</h2>
-                        <button
-                            onClick={() => openCreateModal(new Date())}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
-                        >
-                            + 일정 추가
-                        </button>
-                    </div>
+                                let bg = 'transparent';
+                                if (isHoliday || isSunday) bg = '#fee2e2';
+                                else if (isSaturday) bg = '#eff6ff';
 
-                    {/* 범례 */}
-                    <div className="flex flex-wrap gap-4 mb-4 text-xs text-gray-600">
-                        {CATEGORIES.map((cat) => (
-                            <span key={cat} className="flex items-center gap-1">
-                                <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] ?? DEFAULT_COLOR }} />
-                                {cat}
-                            </span>
-                        ))}
-                        <span className="flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#f0fdf4', border: '1px solid #22c55e' }} />
-                            수입
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fef2f2', border: '1px solid #ef4444' }} />
-                            지출
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#fee2e2', border: '1px solid #ef4444' }} />
-                            공휴일/일요일
-                        </span>
-                        <span className="flex items-center gap-1">
-                            <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#eff6ff', border: '1px solid #3b82f6' }} />
-                            토요일
-                        </span>
-                    </div>
-
-                    {loading ? (
-                        <div className="text-center py-20 text-gray-400">로딩 중...</div>
-                    ) : (
-                        <Calendar
-                            localizer={localizer}
-                            events={events}
-                            startAccessor="start"
-                            endAccessor="end"
-                            style={{ height: 680 }}
-                            view={currentView}
-                            onView={setCurrentView}
-                            date={currentDate}
-                            onNavigate={setCurrentDate}
-                            selectable
-                            onSelectSlot={handleSelectSlot}
-                            onSelectEvent={handleSelectEvent}
-                            eventPropGetter={eventStyleGetter}
-                            messages={messages}
-                            culture="ko"
-                            popup
-                            popupOffset={10}
-                            components={{
-                                // ─── 날짜 셀 배경색 + 클릭 처리 ─────────────
-                                dateCellWrapper: ({ children, value }: { children: React.ReactNode; value: Date }) => {
-                                    const dateStr = format(value, 'yyyy-MM-dd');
-                                    const isSunday = value.getDay() === 0;
-                                    const isSaturday = value.getDay() === 6;
-                                    const isHoliday = holidaySet.has(dateStr);
-
-                                    let bg = 'transparent';
-                                    if (isHoliday || isSunday) bg = '#fee2e2';
-                                    else if (isSaturday) bg = '#eff6ff';
+                                return (
+                                    <div
+                                        style={{ flex: 1, cursor: 'pointer', backgroundColor: bg }}
+                                        onClick={() => openCreateModal(value)}
+                                    >
+                                        {children}
+                                    </div>
+                                );
+                            },
+                            month: {
+                                // ─── 날짜 숫자 + 공휴일명 표시 ──────────
+                                dateHeader: ({ date, label }: { date: Date; label: string }) => {
+                                    const dateStr = format(date, 'yyyy-MM-dd');
+                                    const todayStr = format(new Date(), 'yyyy-MM-dd');
+                                    const isToday = dateStr === todayStr;
+                                    const isSunday = date.getDay() === 0;
+                                    const isSaturday = date.getDay() === 6;
+                                    const holidayName = holidayNameMap.get(dateStr);
+                                    const isRed = isSunday || !!holidayName;
 
                                     return (
-                                        <div
-                                            style={{ flex: 1, cursor: 'pointer', backgroundColor: bg }}
-                                            onClick={() => openCreateModal(value)}
-                                        >
-                                            {children}
+                                        <div className="flex flex-col items-end pr-1">
+                                            <span style={{
+                                                // 오늘이면 흰 텍스트, 아니면 기존 색상
+                                                color: isToday ? '#fff' : (isRed ? '#ef4444' : isSaturday ? '#3b82f6' : '#374151'),
+                                                fontSize: '13px',
+                                                fontWeight: isToday ? 700 : (isRed ? 600 : undefined),
+                                                // 오늘이면 인디고 원형 배경
+                                                backgroundColor: isToday ? '#4f46e5' : undefined,
+                                                borderRadius: isToday ? '50%' : undefined,
+                                                width: isToday ? '24px' : undefined,
+                                                height: isToday ? '24px' : undefined,
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                            }}>
+                                                {label}
+                                            </span>
+                                            {holidayName && (
+                                                <span style={{ fontSize: '9px', color: '#ef4444', lineHeight: 1.2 }}>
+                                                    {holidayName}
+                                                </span>
+                                            )}
                                         </div>
                                     );
                                 },
-                                month: {
-                                    // ─── 날짜 숫자 + 공휴일명 표시 ──────────
-                                    dateHeader: ({ date, label }: { date: Date; label: string }) => {
-                                        const dateStr = format(date, 'yyyy-MM-dd');
-                                        const todayStr = format(new Date(), 'yyyy-MM-dd');
-                                        const isToday = dateStr === todayStr;
-                                        const isSunday = date.getDay() === 0;
-                                        const isSaturday = date.getDay() === 6;
-                                        const holidayName = holidayNameMap.get(dateStr);
-                                        const isRed = isSunday || !!holidayName;
-
-                                        return (
-                                            <div className="flex flex-col items-end pr-1">
-                                                <span style={{
-                                                    // 오늘이면 흰 텍스트, 아니면 기존 색상
-                                                    color: isToday ? '#fff' : (isRed ? '#ef4444' : isSaturday ? '#3b82f6' : '#374151'),
-                                                    fontSize: '13px',
-                                                    fontWeight: isToday ? 700 : (isRed ? 600 : undefined),
-                                                    // 오늘이면 인디고 원형 배경
-                                                    backgroundColor: isToday ? '#4f46e5' : undefined,
-                                                    borderRadius: isToday ? '50%' : undefined,
-                                                    width: isToday ? '24px' : undefined,
-                                                    height: isToday ? '24px' : undefined,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                }}>
-                                                    {label}
-                                                </span>
-                                                {holidayName && (
-                                                    <span style={{ fontSize: '9px', color: '#ef4444', lineHeight: 1.2 }}>
-                                                        {holidayName}
-                                                    </span>
-                                                )}
-                                            </div>
-                                        );
-                                    },
-                                },
-                            }}
-                        />
-                    )}
-                </div>
-            </main>
+                            },
+                        }}
+                    />
+                )}
+            </div>
 
             {/* ─── 생성/수정 모달 ─────────────────────────── */}
             {showModal && (
@@ -624,7 +592,7 @@ function SchedulesPage() {
                     </div>
                 </div>
             )}
-        </div>
+        </>
     );
 }
 

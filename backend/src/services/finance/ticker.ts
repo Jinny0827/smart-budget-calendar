@@ -6,16 +6,20 @@ const GROQ_URL     = 'https://api.groq.com/openai/v1/chat/completions';
 const CACHE_TTL    = 30 * 24 * 60 * 60 * 1000; // 30일
 
 async function groqSingle(query: string): Promise<string | null> {
-    const res = await axios.post(GROQ_URL, {
-        model: 'llama-3.3-70b-versatile',
-        messages: [{ role: 'user', content: `"${query}"의 미국 주식 티커를 JSON으로 반환해. 없으면 null. {"ticker": "AAPL"}` }],
-        temperature: 0,
-        response_format: { type: 'json_object' },
-    }, { headers: { Authorization: `Bearer ${GROQ_API_KEY}` }, timeout: 15000 });
+    try {
+        const res = await axios.post(GROQ_URL, {
+            model: 'llama-3.3-70b-versatile',
+            messages: [{ role: 'user', content: `"${query}"의 미국 주식 티커를 JSON으로 반환해. 없으면 null. {"ticker": "AAPL"}` }],
+            temperature: 0,
+            response_format: { type: 'json_object' },
+        }, { headers: { Authorization: `Bearer ${GROQ_API_KEY}` }, timeout: 15000 });
 
-    return res.data.choices[0].message.content
-        ? JSON.parse(res.data.choices[0].message.content).ticker ?? null
-        : null;
+        return res.data.choices[0].message.content
+            ? JSON.parse(res.data.choices[0].message.content).ticker ?? null
+            : null;
+    } catch {
+        return null;
+    }
 }
 
 async function fetchYfSearch(query: string): Promise<string | null> {
@@ -23,10 +27,11 @@ async function fetchYfSearch(query: string): Promise<string | null> {
         const { data } = await axios.get(`https://query2.finance.yahoo.com/v1/finance/search?q=${query}`, {
             headers: { 'User-Agent': 'Mozilla/5.0' }, timeout: 10000,
         });
-        const equity = (data.quotes ?? []).find(
-            (q: any) => q.quoteType === 'EQUITY' && ['NMS', 'NYQ', 'NGM', 'PCX'].includes(q.exchange)
+        // 거래소 코드 검사 로직을 제거하여 ETF 검색 안정성 확보
+        const result = (data.quotes ?? []).find(
+            (q: any) => (q.quoteType === 'EQUITY' || q.quoteType === 'ETF')
         );
-        return equity?.symbol ?? null;
+        return result?.symbol ?? null;
     } catch {
         return null;
     }

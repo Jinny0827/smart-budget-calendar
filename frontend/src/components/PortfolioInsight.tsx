@@ -45,17 +45,17 @@ export function PortfolioInsight({hasPortfolio}: Props) {
     if (!hasPortfolio) return null;
 
     if (loading) return (
-        <div style={{ background: '#111827', borderRadius: 12, padding: 20, textAlign: 'center' }}>
-            <p style={{ color: '#6b7280', fontSize: 13 }}>포트폴리오 AI 분석 중...</p>
+        <div className="bg-gray-50 rounded-lg p-5 text-center">
+            <p className="text-gray-600 text-sm">포트폴리오 AI 분석 중...</p>
         </div>
     );
 
     if (error) return (
-        <div style={{ background: '#111827', borderRadius: 12, padding: 20 }}>
-            <p style={{ color: '#ef4444', fontSize: 13 }}>{error}</p>
+        <div className="bg-red-50 rounded-lg p-5">
+            <p className="text-red-600 text-sm">{error}</p>
             <button
                 onClick={fetchInsight}
-                style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, marginTop: 4 }}
+                className="text-blue-600 hover:underline text-sm mt-1"
             >
                 다시 시도
             </button>
@@ -64,29 +64,26 @@ export function PortfolioInsight({hasPortfolio}: Props) {
 
     if (!insight) return null;
 
-    const riskColor = insight.riskLevel.includes('낮음') ? '#22c55e'
-        : insight.riskLevel.includes('높음') ? '#ef4444'
-            : '#f59e0b';
+    const riskColor = insight.riskLevel.includes('낮음') ? 'text-green-600 bg-green-100'
+        : insight.riskLevel.includes('높음') ? 'text-red-600 bg-red-100'
+            : 'text-yellow-600 bg-yellow-100';
 
     return (
-        <div style={{ background: '#111827', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 flex flex-col gap-3">
 
             {/* 헤더 */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 16 }}>🤖</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold', fontSize: 15 }}>포트폴리오 AI 인사이트</span>
+            <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                    <span className="text-lg">🤖</span>
+                    <span className="text-gray-900 font-bold text-base">포트폴리오 AI 인사이트</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{
-                        fontSize: 11, padding: '3px 10px', borderRadius: 99,
-                        background: riskColor + '22', color: riskColor, fontWeight: 'bold',
-                    }}>
+                <div className="flex items-center gap-2">
+                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${riskColor}`}>
                         {insight.riskLevel}
                     </span>
                     <button
                         onClick={fetchInsight}
-                        style={{ color: '#6b7280', background: 'none', border: 'none', cursor: 'pointer', fontSize: 12 }}
+                        className="text-gray-500 hover:text-gray-800 text-xs"
                     >
                         새로고침
                     </button>
@@ -94,36 +91,32 @@ export function PortfolioInsight({hasPortfolio}: Props) {
             </div>
 
             {/* 요약 */}
-            <p style={{ color: '#d1d5db', fontSize: 14, lineHeight: 1.6, margin: 0 }}>
+            <p className="text-gray-800 text-sm leading-relaxed m-0">
                 {insight.summary}
             </p>
 
             {/* 상세 토글 */}
             <button
                 onClick={() => setExpanded(v => !v)}
-                style={{
-                    background: '#1f2937', border: 'none', borderRadius: 8,
-                    color: '#9ca3af', fontSize: 13, padding: '8px 0',
-                    cursor: 'pointer',
-                }}
+                className="w-full bg-white border border-gray-200 rounded-md text-gray-600 text-sm py-2 hover:bg-gray-50"
             >
                 {expanded ? '접기 ▲' : '상세 분석 보기 ▼'}
             </button>
 
             {expanded && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="flex flex-col gap-2.5">
                     {[
                         { label: '섹터 분산', value: insight.sectorBalance },
                         { label: '리밸런싱 제안', value: insight.rebalancingSuggestion },
                         { label: '주목 종목', value: insight.topPick },
                     ].map(({ label, value }) => (
-                        <div key={label} style={{ background: '#1f2937', borderRadius: 10, padding: '12px 14px' }}>
-                            <p style={{ color: '#60a5fa', fontSize: 11, fontWeight: 'bold', margin: '0 0 4px' }}>{label}</p>
-                            <p style={{ color: '#d1d5db', fontSize: 13, lineHeight: 1.6, margin: 0 }}>{value}</p>
+                        <div key={label} className="bg-white rounded-lg p-3 border border-gray-200">
+                            <p className="text-blue-600 text-xs font-bold mb-1">{label}</p>
+                            <p className="text-gray-800 text-sm leading-relaxed m-0">{value}</p>
                         </div>
                     ))}
 
-                    <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'right', margin: 0 }}>
+                    <p className="text-gray-500 text-xs text-right m-0 mt-1">
                         기준: {new Date(insight.generatedAt).toLocaleString('ko-KR')}
                     </p>
                 </div>

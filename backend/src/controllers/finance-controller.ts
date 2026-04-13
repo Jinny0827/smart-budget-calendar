@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { analyzeCompany, autocomplete, getStockPrice, getUsStockPrice, generatePortfolioInsight, getBatchStockPrices } from '../services/finance/index';
+import { analyzeCompany, autocomplete, getStockPrice, getUsStockPrice, generatePortfolioInsight, getBatchStockPrices, getExchangeRate } from '../services/finance/index';
 import UserStock from '../models/UserStock';
 import UserFinanceMeta from '../models/UserFinanceMeta';
 
@@ -147,6 +147,17 @@ export const getSearchHistory = async (req: Request, res: Response): Promise<voi
         res.json(meta?.searchHistory ?? []);
     } catch (e: any) {
         res.status(500).json({ error: e.message ?? '히스토리 조회 실패' });
+    }
+};
+
+// 환율 조회
+export const exchangeRate = async (_req: Request, res: Response): Promise<void> => {
+    try {
+        const data = await getExchangeRate();
+        if (!data) { res.status(503).json({ error: '환율 조회 실패' }); return; }
+        res.json(data);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message ?? '환율 조회 실패' });
     }
 };
 

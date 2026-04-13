@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getTicker } from './ticker';
+import StockCache from '../../models/StockCache';
 
 async function fetchYfChart(symbol: string) {
     try {
@@ -74,9 +75,7 @@ export async function getStockPrice(stockCode: string, exchange?: 'KS' | 'KQ') {
 
         const result = parseStockData(data);
         if (result) {
-            (result as any).symbol = symbol;
-            (result as any).suffix = suffix;
-            return result;
+            return { ...result, symbol, suffix };
         }
     }
     return null;
@@ -90,8 +89,10 @@ export async function getUsStockPrice(query: string) {
     if (!data?.timestamp) return null;
 
     const result = parseStockData(data);
-    if (result) (result as any).ticker = ticker;
-    return result;
+    if (result) {
+        return { ...result, ticker };
+    }
+    return null;
 }
 
 // v7 quote API는 crumb/쿠키 이슈로 빈값 반환이 잦음
@@ -116,5 +117,24 @@ export async function getBatchStockPrices(symbols: string[]): Promise<Record<str
             result[symbol] = r.value;
         }
     });
+    return result;
+}
+
+// USD/KRW 환율 조회 (Yahoo Finance USDKRW=X, 1시간 캐시)
+export async function getExchangeRate(): Promise<{ usdKrw: number } | null> {
+    const cacheKey = 'exchange:USDKRW';
+    const cached   = await StockCache.findOne({ key: cacheKey, expiresAt: { $gt: new Date() } }).lean() as any;
+    if (cached) return cached.data;
+
+    const data = await fetchYfChart('USDKRW=X');
+    const rate  = data?.meta?.regularMarketPrice;
+    if (!rate) return null;
+
+    const result = { usdKrw: Math.round(rate) };
+    await StockCache.findOneAndUpdate(
+        { key: cacheKey },
+        { key: cacheKey, data: result, expiresAt: new Date(Date.now() + 60 * 60 * 1000) },
+        { upsert: true }
+    );
     return result;
 }

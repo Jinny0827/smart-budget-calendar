@@ -20,10 +20,11 @@ import { ChatPanel } from './components/ChatPanel';
 import type { User, Group } from './types';
 import {NoticeModal} from "./components/NoticeModal.tsx";
 import FinancePage from "./pages/Financepage.tsx";
+import Layout from './components/Layout';
 
 // 인증이 필요한 라우트 보호
 function PrivateRoute({ children }: { children: React.ReactNode }) {
-    return isAuthenticated() ? <>{children}</> : <Navigate to="/login" />;
+    return isAuthenticated() ? <Layout>{children}</Layout> : <Navigate to="/login" />;
 }
 
 // 인증된 사용자는 접근 불가 (로그인/회원가입 페이지)
