@@ -14,13 +14,16 @@ import { getStockPrice, getUsStockPrice } from './stock';
 import { generateStockInsight } from './groqFinance';
 import StockCache from '../../models/StockCache';
 
-const ANALYZE_TTL = 60 * 60 * 1000; // 1시간
+const ANALYZE_TTL    = 60 * 60 * 1000; // 1시간
+const CACHE_VERSION  = 2;              // 로직 변경 시 올려서 기존 캐시 일괄 무효화
 
-export async function analyzeCompany(query: string, market: string, year: string) {
-    const cacheKey = `analyze:${query}:${market}:${year}`;
+export async function analyzeCompany(query: string, market: string, year: string, force = false) {
+    const cacheKey = `analyze:v${CACHE_VERSION}:${query}:${market}:${year}`;
 
-    const cached = await StockCache.findOne({ key: cacheKey, expiresAt: { $gt: new Date() } }).lean() as any;
-    if (cached) return cached.data;
+    if (!force) {
+        const cached = await StockCache.findOne({ key: cacheKey, expiresAt: { $gt: new Date() } }).lean() as any;
+        if (cached) return cached.data;
+    }
 
     let result: any;
 
@@ -57,7 +60,11 @@ export async function analyzeCompany(query: string, market: string, year: string
             getMajorShareholders(corpCode),
             getDividendInfo(corpCode),
         ]) as any[];
-        const stockData = stockCode ? await getStockPrice(stockCode) : null;
+
+        // corp_cls로 거래소 확정: 'Y'=KOSPI(.KS), 'K'=KOSDAQ(.KQ)
+        const corpCls  = (companyInfo as any)?.corp_cls;
+        const exchange = corpCls === 'Y' ? 'KS' : corpCls === 'K' ? 'KQ' : undefined;
+        const stockData = stockCode ? await getStockPrice(stockCode, exchange) : null;
 
         const sectorNews = await getSectorNews((companyInfo as any)?.induty_code ?? '', (companyInfo as any)?.corp_name ?? query);
         const insight    = await generateStockInsight(companyInfo, financial, disclosures as any[], sectorNews, stockData);
@@ -97,7 +104,7 @@ export async function autocomplete(query: string, market: string) {
     }
 }
 
-export { getStockPrice, getUsStockPrice } from './stock';
+export { getStockPrice, getUsStockPrice, getBatchStockPrices } from './stock';
 export { generatePortfolioInsight } from './groqFinance';
 export { loadCikMap } from './sec';
 export { loadCorpList } from './dart';

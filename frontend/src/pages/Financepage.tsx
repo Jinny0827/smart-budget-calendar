@@ -1,165 +1,38 @@
 import { useState, useEffect, useRef } from 'react';
 import Chart from 'chart.js/auto';
+import type {
+    AnalyzeResult, YearFinancial, BalanceSheet,
+    AmountData, Insight, SectorNews, StockData,
+    CompanyInfo, Disclosure, Shareholder, Dividend,
+} from '../types/finance';
+import StockList from '../components/StockList.tsx';
+import StockRegisterModal from '../components/StockRegisterModal';
+import type { RegisterPayload } from '../components/StockRegisterModal';
 
 // ── 상수 ──────────────────────────────────────────────────
 const API_BASE = `${import.meta.env.VITE_API_URL}/finance`;
 
-// ── 타입 ──────────────────────────────────────────────────
-interface CompanyInfo {
-    corp_name: string;
-    // 한국 기업 필드
-    corp_code?: string;
-    stock_code?: string;
-    ceo_nm?: string;
-    induty_code?: string;
-    est_dt?: string;
-    listing_dt?: string | null;
-    // 미국 기업 필드
-    market?: string;
-    cik?: string;
-    ticker?: string;
-    exchange?: string;
-    sic?: string;
-    sic_description?: string;
-    state?: string;
-    fiscal_year_end?: string;
-}
-
-interface AmountData {
-    raw: number;
-    억원?: number;
-    백만달러?: number;
-    표시: string;
-}
-
-interface IncomeStatement {
-    revenue?: AmountData;
-    operating_profit?: AmountData;
-    net_income?: AmountData;
-}
-
-interface BalanceSheet {
-    total_assets?: AmountData;
-    total_liabilities?: AmountData;
-    total_equity?: AmountData;
-    current_assets?: AmountData;
-    current_liabilities?: AmountData;
-}
-
-interface CashFlow {
-    operating_cf?: AmountData;
-    investing_cf?: AmountData;
-    financing_cf?: AmountData;
-}
-
-interface YearFinancial {
-    income_statement: IncomeStatement;
-    balance_sheet: BalanceSheet;
-    cash_flow: CashFlow;
-}
-
-interface Disclosure {
-    date: string;
-    title: string;
-    rcept_no: string;
-}
-
-interface Shareholder {
-    name: string;
-    relation: string;
-    stock_type: string;
-    shares: string;
-    ratio: string;
-}
-
-interface Dividend {
-    year: string;
-    dividend_per_share?: string;
-    total_dividend?: string;
-    dividend_ratio?: string;
-    dividend_yield?: string;
-}
-
-interface SectorNews {
-    title: string;
-    pubDate: string;
-    description: string;
-}
-
-interface StockData {
-    current_price: number;
-    prev_close: number;
-    change_pct: number;
-    intraday_high: number | null;
-    intraday_low: number | null;
-    high_5d: number;
-    low_5d: number;
-    week52_high: number | null;
-    week52_low: number | null;
-    trend_5d: '상승' | '하락' | '횡보';
-    volume_trend: '증가' | '감소' | '보합';
-    market_cap_억원: number | null;
-    ticker?: string;
-}
-
-interface Insight {
-    summary: string;
-    profitability: string;
-    stability: string;
-    growth: string;
-    sector_trend: string;
-    price_analysis?: string;
-    risk: string;
-    positive: string;
-    score: {
-        total: number;
-        profitability: number;
-        stability: number;
-        growth: number;
-        cashflow: number;
-    };
-}
-
-interface AnalyzeResult {
-    company_info: CompanyInfo;
-    financial: Record<string, YearFinancial>;
-    disclosures: Disclosure[];
-    shareholders: { shareholders: Shareholder[] };
-    dividend: Dividend[];
-    stock_data?: StockData;
-    insight?: Insight;
-    sector_news?: SectorNews[];
-}
-
-
-
-type Step = 'search' | 'loading' | 'result';
-type TabKey = 'financial' | 'stock' | 'disclosure' | 'shareholder' | 'dividend' | 'insight';
+// ── 페이지 탭 ──────────────────────────────────────────────
+type PageTab  = 'mystock' | 'analyze';
+type Step     = 'search' | 'loading' | 'result';
+type TabKey   = 'financial' | 'stock' | 'disclosure' | 'shareholder' | 'dividend' | 'insight';
 
 // ── 유틸 ──────────────────────────────────────────────────
 function formatDate(dt: string | null) {
     if (!dt) return '-';
     return `${dt.slice(0, 4)}.${dt.slice(4, 6)}.${dt.slice(6, 8)}`;
 }
-
 function formatDisclosureDate(dt: string) {
     return `${dt.slice(0, 4)}.${dt.slice(4, 6)}.${dt.slice(6, 8)}`;
 }
-
 function getColor(raw?: number) {
     if (raw === undefined) return undefined;
     return raw >= 0 ? '#00cc44' : '#f87171';
 }
-
-// 한국 (억원) / 미국 (백만달러) 자동 폴백
 function getChartValue(amount?: AmountData): number {
-    if (!amount) {
-        return 0;
-    }
-
+    if (!amount) return 0;
     return amount.억원 ?? amount.백만달러 ?? 0;
 }
-
 function getChartUnit(data: Record<string, YearFinancial>): string {
     const first = Object.values(data)[0];
     const rev = first?.income_statement?.revenue;
@@ -167,63 +40,63 @@ function getChartUnit(data: Record<string, YearFinancial>): string {
     return '억';
 }
 
-// ── 메인 컴포넌트 ──────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 메인 컴포넌트
+// ══════════════════════════════════════════════════════════
 export default function FinancePage() {
-    const [step,   setStep]   = useState<Step>('search');
-    const [query,  setQuery]  = useState('');
-    const [year,   setYear]   = useState(String(new Date().getFullYear() - 1));
-    const [result, setResult] = useState<AnalyzeResult | null>(null);
-    const [error,  setError]  = useState<string | null>(null);
-    const [tab,    setTab]    = useState<TabKey>('financial');
-    const [market, setMarket] = useState<'kr' | 'us'>('kr');
-    const [suggestions, setSuggestions] = useState<string[]>([]);
+    const [pageTab, setPageTab] = useState<PageTab>('mystock');
+
+    // 분석 상태
+    const [step,    setStep]    = useState<Step>('search');
+    const [query,   setQuery]   = useState('');
+    const [year,    setYear]    = useState(String(new Date().getFullYear() - 1));
+    const [result,  setResult]  = useState<AnalyzeResult | null>(null);
+    const [error,   setError]   = useState<string | null>(null);
+    const [tab,     setTab]     = useState<TabKey>('financial');
+    const [market,  setMarket]  = useState<'kr' | 'us'>('kr');
+    const [suggestions, setSuggestions]   = useState<string[]>([]);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const acCache = useRef<Record<string, string[]>>({});
 
+    // 종목 등록 모달
+    const [showModal,   setShowModal]   = useState(false);
+    const [refreshKey,  setRefreshKey]  = useState(0);
+
+    // ── 자동완성 ──
     useEffect(() => {
-        if(query.trim().length < 2) {
-            setSuggestions([]);
-            return;
-        }
-
-        const cacheKey = `${market}:${query.trim()}`
-
-        // 캐시 히트
-        if(acCache.current[cacheKey]) {
-            setSuggestions(acCache.current[cacheKey]);
-            return;
-        }
+        if (query.trim().length < 2) { setSuggestions([]); return; }
+        const cacheKey = `${market}:${query.trim()}`;
+        if (acCache.current[cacheKey]) { setSuggestions(acCache.current[cacheKey]); return; }
 
         const timer = setTimeout(async () => {
             try {
                 const res  = await fetch(`${API_BASE}/autocomplete?query=${encodeURIComponent(query.trim())}&market=${market}`);
                 const data = await res.json();
-                if (data.length > 0) {
-                    acCache.current[cacheKey] = data;  // 결과 있을 때만 캐싱
-                }
+                if (data.length > 0) acCache.current[cacheKey] = data;
                 setSuggestions(data);
                 setSelectedIndex(-1);
-            } catch {
-                setSuggestions([]);
-            }
+            } catch { setSuggestions([]); }
         }, 150);
 
         return () => clearTimeout(timer);
     }, [query, market]);
 
-    // ── API 호출 ──
-    const handleSearch = async () => {
+    // ── 분석 호출 ──
+    const handleSearch = async (force = false) => {
         if (!query.trim()) return;
         setSuggestions([]);
         setError(null);
         setStep('loading');
 
         try {
-            const res  = await fetch(`${API_BASE}/analyze?query=${encodeURIComponent(query)}&year=${year}&market=${market}`);
-            const data = await res.json();
+            const token = localStorage.getItem('token');
+            const url   = `${API_BASE}/analyze?query=${encodeURIComponent(query)}&year=${year}&market=${market}${force ? '&force=true' : ''}`;
+            const res   = await fetch(url, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+            const data  = await res.json();
             if (!res.ok) throw new Error(data.error || '조회 실패');
             setResult(data);
             setStep('result');
+            setTab('financial');
         } catch (e: any) {
             setError(e.message || '서버 오류가 발생했습니다');
             setStep('search');
@@ -235,246 +108,319 @@ export default function FinancePage() {
         setQuery('');
         setResult(null);
         setError(null);
-        setTab('financial');
+    };
+
+    // ── 종목 등록 ──
+    const handleRegister = async (payload: RegisterPayload) => {
+        const token = localStorage.getItem('token');
+        const res   = await fetch(`${API_BASE}/stocks`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify(payload),
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || '등록 실패');
+        }
+        setShowModal(false);
+        setRefreshKey(k => k + 1);
+        setPageTab('mystock');   // 등록 후 내 종목 탭으로 이동
     };
 
     return (
         <div style={{ maxWidth: 480, margin: '0 auto', background: '#000', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
 
-            {/* 헤더 */}
+            {/* ── 헤더 ── */}
             <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ color: '#888', fontSize: 13 }}>
-          {step === 'search' ? '기업 검색' : step === 'loading' ? '조회 중' : '분석 결과'}
-        </span>
+                <span style={{ color: '#888', fontSize: 13 }}>
+                    {pageTab === 'mystock' ? '내 종목' : step === 'search' ? '기업 검색' : step === 'loading' ? '조회 중' : '분석 결과'}
+                </span>
                 <h2 style={{ color: '#fff', margin: 0, fontSize: 17, fontWeight: 'bold' }}>재무 분석</h2>
-                {step === 'result'
+                {pageTab === 'analyze' && step === 'result'
                     ? <button onClick={handleReset} style={{ color: '#60a5fa', background: 'none', border: 'none', cursor: 'pointer', fontSize: 13 }}>다시 검색</button>
                     : <span style={{ width: 56 }} />
                 }
             </div>
 
-            {/* ── 검색 화면 ── */}
-            {step === 'search' && (
-                <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* ── 페이지 탭 ── */}
+            <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', padding: '0 16px' }}>
+                {([['mystock', '내 종목'], ['analyze', '기업 분석']] as const).map(([key, label]) => (
+                    <button
+                        key={key}
+                        onClick={() => setPageTab(key)}
+                        style={{
+                            padding: '10px 16px', background: 'none', border: 'none',
+                            color: pageTab === key ? '#60a5fa' : '#6b7280',
+                            borderBottom: pageTab === key ? '2px solid #60a5fa' : '2px solid transparent',
+                            fontSize: 14, fontWeight: pageTab === key ? 'bold' : 'normal',
+                            cursor: 'pointer',
+                        }}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
 
-                    {/* market 토글 */}
-                    <div style={{ display: 'flex', background: '#111827', borderRadius: 8, padding: 4, gap: 4 }}>
-                        {([['kr', '🇰🇷 한국'], ['us', '🇺🇸 미국']] as const).map(([key, label]) => (
-                            <button
-                                key={key}
-                                onClick={() => { setMarket(key); setQuery(''); }}
-                                style={{
-                                    flex: 1, padding: '10px 0',
-                                    background: market === key ? '#0d4f8c' : 'transparent',
-                                    color: market === key ? '#fff' : '#6b7280',
-                                    border: 'none', borderRadius: 6,
-                                    fontSize: 14, fontWeight: market === key ? 'bold' : 'normal',
-                                    cursor: 'pointer',
-                                }}
-                            >
-                                {label}
-                            </button>
-                        ))}
-                    </div>
+            {/* ── 내 종목 탭 ── */}
+            {pageTab === 'mystock' && (
+                <div style={{ padding: 16, flex: 1 }}>
+                    <StockList
+                        onRegisterClick={() => setPageTab('analyze')}
+                        refreshKey={refreshKey}
+                    />
+                </div>
+            )}
 
-                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
-                        {market === 'us' ? '회사명 또는 티커를 입력하세요' : '회사명 또는 종목코드를 입력하세요'}
-                    </p>
+            {/* ── 기업 분석 탭 ── */}
+            {pageTab === 'analyze' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
 
-                    <div style={{ position: 'relative' }}>
-                        <input
-                            type="text"
-                            value={query}
-                            onChange={(e) => setQuery(e.target.value)}
-                            onKeyDown={(e) => {
-                                if (suggestions.length > 0) {
-                                    if (e.key === 'ArrowDown') {
-                                        e.preventDefault();
-                                        setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1));
-                                    } else if (e.key === 'ArrowUp') {
-                                        e.preventDefault();
-                                        setSelectedIndex(i => Math.max(i - 1, -1));
-                                    } else if (e.key === 'Escape') {
-                                        setSuggestions([]);
-                                        setSelectedIndex(-1);
-                                    } else if (e.key === 'Enter') {
-                                        if (selectedIndex >= 0) {
-                                            setQuery(suggestions[selectedIndex]);
-                                            setSuggestions([]);
-                                            setSelectedIndex(-1);
-                                        } else {
-                                            handleSearch();
-                                        }
-                                    }
-                                } else if (e.key === 'Enter') {
-                                    handleSearch();
-                                }
-                            }}
-                            onBlur={() => setTimeout(() => { setSuggestions([]); setSelectedIndex(-1); }, 150)}
-                            placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
-                            style={{
-                                width: '100%', padding: '14px 16px', background: '#111827',
-                                color: '#fff', border: '1px solid #374151', borderRadius: 8,
-                                fontSize: 16, boxSizing: 'border-box', outline: 'none',
-                            }}
-                        />
+                    {/* 검색 화면 */}
+                    {step === 'search' && (
+                        <div style={{ padding: 16, flex: 1, display: 'flex', flexDirection: 'column', gap: 12 }}>
 
-                        {/* 드롭다운 */}
-                        {suggestions.length > 0 && (
-                            <div style={{
-                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                                background: '#1f2937', border: '1px solid #374151',
-                                borderRadius: 8, marginTop: 4, overflow: 'hidden',
-                            }}>
-                                {suggestions.map((name, idx) => (
+                            {/* 마켓 토글 */}
+                            <div style={{ display: 'flex', background: '#111827', borderRadius: 8, padding: 4, gap: 4 }}>
+                                {([['kr', '🇰🇷 한국'], ['us', '🇺🇸 미국']] as const).map(([key, label]) => (
                                     <button
-                                        key={name}
-                                        onMouseDown={() => {   // onClick 대신 onMouseDown (onBlur보다 먼저 실행)
-                                            setQuery(name);
-                                            setSuggestions([]);
-                                            setSelectedIndex(-1);
-                                        }}
-                                        onMouseEnter={() => setSelectedIndex(idx)}
-                                        onMouseLeave={() => setSelectedIndex(-1)}
+                                        key={key}
+                                        onClick={() => { setMarket(key); setQuery(''); setSuggestions([]); }}
                                         style={{
-                                            display: 'block', width: '100%', padding: '12px 16px',
-                                            background: selectedIndex === idx ? '#374151' : 'none',
-                                            border: 'none', borderBottom: '1px solid #374151',
-                                            color: '#e2e8f0', fontSize: 14, textAlign: 'left', cursor: 'pointer',
+                                            flex: 1, padding: '10px 0',
+                                            background: market === key ? '#0d4f8c' : 'transparent',
+                                            color: market === key ? '#fff' : '#6b7280',
+                                            border: 'none', borderRadius: 6,
+                                            fontSize: 14, fontWeight: market === key ? 'bold' : 'normal',
+                                            cursor: 'pointer',
                                         }}
                                     >
-                                        {name}
+                                        {label}
                                     </button>
                                 ))}
                             </div>
-                        )}
-                    </div>
 
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        <span style={{ color: '#888', fontSize: 13 }}>사업연도</span>
-                        <select
-                            value={year}
-                            onChange={(e) => setYear(e.target.value)}
-                            style={{
-                                padding: '8px 12px', background: '#111827',
-                                color: '#fff', border: '1px solid #374151',
-                                borderRadius: 8, fontSize: 14, cursor: 'pointer',
-                            }}
-                        >
-                            {Array.from({length: 5}, (_, i) => String(new Date().getFullYear() - 1 - i))
-                                .map((y) => (
-                                <option key={y} value={y}>{y}년</option>
-                            ))}
-                        </select>
-                    </div>
+                            <p style={{ color: '#888', fontSize: 13, margin: 0 }}>
+                                {market === 'us' ? '회사명 또는 티커를 입력하세요' : '회사명 또는 종목코드를 입력하세요'}
+                            </p>
 
-                    {error && <p style={{ color: '#f87171', fontSize: 13, margin: 0 }}>{error}</p>}
-
-                    <button
-                        onClick={handleSearch}
-                        disabled={!query.trim()}
-                        style={{
-                            marginTop: 8, padding: '14px 0',
-                            background: query.trim() ? '#0d4f8c' : '#1f2937',
-                            color: query.trim() ? '#fff' : '#6b7280',
-                            border: 'none', borderRadius: 8,
-                            fontSize: 16, cursor: query.trim() ? 'pointer' : 'default',
-                            fontWeight: 'bold',
-                        }}
-                    >
-                        재무 분석 시작
-                    </button>
-
-                    <div style={{ marginTop: 8 }}>
-                        <p style={{ color: '#555', fontSize: 12, margin: '0 0 8px' }}>예시</p>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {(market === 'us'
-                                    ? ['테슬라', '애플', '엔비디아', '알파벳']
-                                    : ['삼성전자', 'SK하이닉스', '카카오', 'NAVER']
-                            ).map((name) => (
-                                <button
-                                    key={name}
-                                    onClick={() => setQuery(name)}
+                            {/* 검색 입력 */}
+                            <div style={{ position: 'relative' }}>
+                                <input
+                                    type="text"
+                                    value={query}
+                                    onChange={(e) => setQuery(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (suggestions.length > 0) {
+                                            if (e.key === 'ArrowDown') { e.preventDefault(); setSelectedIndex(i => Math.min(i + 1, suggestions.length - 1)); }
+                                            else if (e.key === 'ArrowUp') { e.preventDefault(); setSelectedIndex(i => Math.max(i - 1, -1)); }
+                                            else if (e.key === 'Escape') { setSuggestions([]); setSelectedIndex(-1); }
+                                            else if (e.key === 'Enter') {
+                                                if (selectedIndex >= 0) { setQuery(suggestions[selectedIndex]); setSuggestions([]); setSelectedIndex(-1); }
+                                                else { handleSearch(); }
+                                            }
+                                        } else if (e.key === 'Enter') { handleSearch(); }
+                                    }}
+                                    onBlur={() => setTimeout(() => { setSuggestions([]); setSelectedIndex(-1); }, 150)}
+                                    placeholder={market === 'us' ? '예: 테슬라 또는 TSLA' : '예: 삼성전자 또는 005930'}
                                     style={{
-                                        padding: '6px 12px', background: '#1f2937',
-                                        color: '#9ca3af', border: '1px solid #374151',
-                                        borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                                        width: '100%', padding: '14px 16px', background: '#111827',
+                                        color: '#fff', border: '1px solid #374151', borderRadius: 8,
+                                        fontSize: 16, boxSizing: 'border-box', outline: 'none',
+                                    }}
+                                />
+
+                                {suggestions.length > 0 && (
+                                    <div style={{
+                                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                        background: '#1f2937', border: '1px solid #374151',
+                                        borderRadius: 8, marginTop: 4, overflow: 'hidden',
                                     }}>
-                                        {name}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-            )}
+                                        {suggestions.map((name, idx) => (
+                                            <button
+                                                key={name}
+                                                onMouseDown={() => { setQuery(name); setSuggestions([]); setSelectedIndex(-1); }}
+                                                onMouseEnter={() => setSelectedIndex(idx)}
+                                                onMouseLeave={() => setSelectedIndex(-1)}
+                                                style={{
+                                                    display: 'block', width: '100%', padding: '12px 16px',
+                                                    background: selectedIndex === idx ? '#374151' : 'none',
+                                                    border: 'none', borderBottom: '1px solid #374151',
+                                                    color: '#e2e8f0', fontSize: 14, textAlign: 'left', cursor: 'pointer',
+                                                }}
+                                            >
+                                                {name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
 
-            {/* ── 로딩 화면 ── */}
-            {step === 'loading' && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
-                    <div style={{ color: '#60a5fa', fontSize: 40 }}>📊</div>
-                    <p style={{ color: '#fff', fontSize: 16, margin: 0 }}>{query} 분석 중...</p>
-                    <p style={{ color: '#888', fontSize: 13, margin: 0 }}>API에서 데이터를 가져오고 있어요</p>
-                </div>
-            )}
+                            {/* 사업연도 */}
+                            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <span style={{ color: '#888', fontSize: 13 }}>사업연도</span>
+                                <select
+                                    value={year}
+                                    onChange={(e) => setYear(e.target.value)}
+                                    style={{
+                                        padding: '8px 12px', background: '#111827',
+                                        color: '#fff', border: '1px solid #374151',
+                                        borderRadius: 8, fontSize: 14, cursor: 'pointer',
+                                    }}
+                                >
+                                    {Array.from({ length: 5 }, (_, i) => String(new Date().getFullYear() - 1 - i))
+                                        .map((y) => <option key={y} value={y}>{y}년</option>)}
+                                </select>
+                            </div>
 
-            {/* ── 결과 화면 ── */}
-            {step === 'result' && result && (
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            {error && <p style={{ color: '#f87171', fontSize: 13, margin: 0 }}>{error}</p>}
 
-                    <CompanyCard info={result.company_info} />
-
-                    {/* 탭 메뉴 */}
-                    <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', overflowX: 'auto', scrollbarWidth: 'none' }}>
-                        {([
-                            { key: 'financial',   label: '재무제표' },
-                            { key: 'stock',       label: '📈 주가' },
-                            { key: 'disclosure',  label: '공시' },
-                            { key: 'shareholder', label: '주주' },
-                            { key: 'dividend',    label: '배당' },
-                            { key: 'insight',     label: '인사이트' },
-                        ] as const).map(({ key, label }) => (
                             <button
-                                key={key}
-                                onClick={() => setTab(key)}
+                                onClick={handleSearch}
+                                disabled={!query.trim()}
                                 style={{
-                                    flexShrink: 0, padding: '12px 14px', background: 'none', border: 'none',
-                                    color: tab === key ? '#60a5fa' : '#6b7280',
-                                    borderBottom: tab === key ? '2px solid #60a5fa' : '2px solid transparent',
-                                    fontSize: 12, cursor: 'pointer',
-                                    fontWeight: tab === key ? 'bold' : 'normal',
-                                    whiteSpace: 'nowrap',
+                                    marginTop: 8, padding: '14px 0',
+                                    background: query.trim() ? '#0d4f8c' : '#1f2937',
+                                    color: query.trim() ? '#fff' : '#6b7280',
+                                    border: 'none', borderRadius: 8,
+                                    fontSize: 16, cursor: query.trim() ? 'pointer' : 'default',
+                                    fontWeight: 'bold',
                                 }}
                             >
-                                {label}
+                                재무 분석 시작
                             </button>
-                        ))}
-                    </div>
 
-                    {/* 탭 컨텐츠 */}
-                    <div style={{ padding: 16, flex: 1 }}>
-                        {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
-                        {tab === 'stock'       && <StockTab data={result.stock_data} />}
-                        {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
-                        {tab === 'shareholder' && <ShareholderTab data={result.shareholders?.shareholders ?? []} />}
-                        {tab === 'dividend'    && <DividendTab data={result.dividend} />}
-                        {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
-                    </div>
+                            {/* 예시 버튼 */}
+                            <div style={{ marginTop: 8 }}>
+                                <p style={{ color: '#555', fontSize: 12, margin: '0 0 8px' }}>예시</p>
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                    {(market === 'us'
+                                        ? ['테슬라', '애플', '엔비디아', '알파벳']
+                                        : ['삼성전자', 'SK하이닉스', '카카오', 'NAVER']
+                                    ).map((name) => (
+                                        <button
+                                            key={name}
+                                            onClick={() => setQuery(name)}
+                                            style={{
+                                                padding: '6px 12px', background: '#1f2937',
+                                                color: '#9ca3af', border: '1px solid #374151',
+                                                borderRadius: 20, fontSize: 13, cursor: 'pointer',
+                                            }}
+                                        >
+                                            {name}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
-                    <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937' }}>
-                        <p style={{ color: '#4b5563', fontSize: 11, margin: 0, textAlign: 'center' }}>
-                            본 서비스는 투자 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
-                        </p>
-                    </div>
+                    {/* 로딩 화면 */}
+                    {step === 'loading' && (
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 16 }}>
+                            <div style={{ color: '#60a5fa', fontSize: 40 }}>📊</div>
+                            <p style={{ color: '#fff', fontSize: 16, margin: 0 }}>{query} 분석 중...</p>
+                            <p style={{ color: '#888', fontSize: 13, margin: 0 }}>데이터를 가져오고 있어요</p>
+                        </div>
+                    )}
+
+                    {/* 결과 화면 */}
+                    {step === 'result' && result && (
+                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+
+                            <CompanyCard info={result.company_info} />
+
+                            {/* 종목 추가 버튼 */}
+                            <div style={{ padding: '0 16px 8px' }}>
+                                <button
+                                    onClick={() => setShowModal(true)}
+                                    style={{
+                                        width: '100%', padding: '11px 0',
+                                        background: '#1d4ed8', color: '#fff',
+                                        border: 'none', borderRadius: 8,
+                                        fontSize: 14, fontWeight: 'bold', cursor: 'pointer',
+                                    }}
+                                >
+                                    ＋ 내 종목에 추가
+                                </button>
+                            </div>
+
+                            {/* 분석 탭 메뉴 */}
+                            <div style={{ display: 'flex', borderBottom: '1px solid #1f2937', overflowX: 'auto', scrollbarWidth: 'none' }}>
+                                {([
+                                    { key: 'financial',   label: '재무제표' },
+                                    { key: 'stock',       label: '📈 주가' },
+                                    { key: 'disclosure',  label: '공시' },
+                                    { key: 'shareholder', label: '주주' },
+                                    { key: 'dividend',    label: '배당' },
+                                    { key: 'insight',     label: '인사이트' },
+                                ] as const).map(({ key, label }) => (
+                                    <button
+                                        key={key}
+                                        onClick={() => setTab(key)}
+                                        style={{
+                                            flexShrink: 0, padding: '12px 14px', background: 'none', border: 'none',
+                                            color: tab === key ? '#60a5fa' : '#6b7280',
+                                            borderBottom: tab === key ? '2px solid #60a5fa' : '2px solid transparent',
+                                            fontSize: 12, cursor: 'pointer',
+                                            fontWeight: tab === key ? 'bold' : 'normal',
+                                            whiteSpace: 'nowrap',
+                                        }}
+                                    >
+                                        {label}
+                                    </button>
+                                ))}
+                            </div>
+
+                            {/* 탭 컨텐츠 */}
+                            <div style={{ padding: 16, flex: 1 }}>
+                                {tab === 'financial'   && <FinancialTab data={result.financial} baseYear={year} />}
+                                {tab === 'stock'       && <StockTab data={result.stock_data} />}
+                                {tab === 'disclosure'  && <DisclosureTab data={result.disclosures} />}
+                                {tab === 'shareholder' && <ShareholderTab data={result.shareholders?.shareholders ?? []} />}
+                                {tab === 'dividend'    && <DividendTab data={result.dividend ?? []} />}
+                                {tab === 'insight'     && <InsightTab insight={result.insight} news={result.sector_news} />}
+                            </div>
+
+                            <div style={{ padding: '12px 16px', borderTop: '1px solid #1f2937', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                                <button
+                                    onClick={() => handleSearch(true)}
+                                    style={{
+                                        background: 'none', border: '1px solid #374151',
+                                        color: '#6b7280', borderRadius: 6,
+                                        padding: '6px 14px', fontSize: 12, cursor: 'pointer',
+                                    }}
+                                >
+                                    🔄 데이터 새로고침 (캐시 무시)
+                                </button>
+                                <p style={{ color: '#4b5563', fontSize: 11, margin: 0, textAlign: 'center' }}>
+                                    본 서비스는 투자 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
+                                </p>
+                            </div>
+                        </div>
+                    )}
                 </div>
+            )}
+
+            {/* ── 종목 등록 모달 ── */}
+            {showModal && result && (
+                <StockRegisterModal
+                    result={result}
+                    onClose={() => setShowModal(false)}
+                    onRegister={handleRegister}
+                />
             )}
         </div>
     );
 }
 
-// ── 기업 개요 카드 ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 기업 개요 카드
+// ══════════════════════════════════════════════════════════
 function CompanyCard({ info }: { info: CompanyInfo }) {
     const isUs = info.market === 'US';
-
     return (
         <div style={{ margin: 16, padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -505,14 +451,15 @@ function CompanyCard({ info }: { info: CompanyInfo }) {
     );
 }
 
-// ── 재무제표 탭 ────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 재무제표 탭
+// ══════════════════════════════════════════════════════════
 function FinancialTab({ data, baseYear }: { data: Record<string, YearFinancial>; baseYear: string }) {
     const years  = Object.keys(data).sort();
     const latest = data[baseYear] ?? data[years[years.length - 1]];
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-
             <SectionCard title="손익계산서 (3개년)" color="#00cc44">
                 <IncomeChart data={data} years={years} />
                 <div style={{ marginTop: 12 }}>
@@ -545,24 +492,21 @@ function FinancialTab({ data, baseYear }: { data: Record<string, YearFinancial>;
     );
 }
 
-// ── 손익 막대 차트 ─────────────────────────────────────────
+// ── 차트 컴포넌트들 ────────────────────────────────────────
 function IncomeChart({ data, years }: { data: Record<string, YearFinancial>; years: string[] }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const chartRef  = useRef<Chart | null>(null);
 
     useEffect(() => {
         if (!canvasRef.current) return;
-
-        const existingChart = Chart.getChart(canvasRef.current);
-        if (existingChart) existingChart.destroy();
-        chartRef.current = null;
+        const existing = Chart.getChart(canvasRef.current);
+        if (existing) existing.destroy();
 
         const unit     = getChartUnit(data);
         const revenue  = years.map((y) => getChartValue(data[y]?.income_statement.revenue));
         const opProfit = years.map((y) => getChartValue(data[y]?.income_statement.operating_profit));
         const net      = years.map((y) => getChartValue(data[y]?.income_statement.net_income));
 
-        chartRef.current = new Chart(canvasRef.current, {
+        const chart = new Chart(canvasRef.current, {
             type: 'bar',
             data: {
                 labels: years,
@@ -584,34 +528,28 @@ function IncomeChart({ data, years }: { data: Record<string, YearFinancial>; yea
                 },
             },
         });
-
-        return () => { chartRef.current?.destroy(); };
+        return () => { chart.destroy(); };
     }, [data, years]);
 
     return <canvas ref={canvasRef} style={{ width: '100%' }} />;
 }
 
-// ── 재무상태 도넛 차트 ─────────────────────────────────────
 function BalanceChart({ data }: { data?: BalanceSheet }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const chartRef  = useRef<Chart | null>(null);
 
     useEffect(() => {
         if (!canvasRef.current || !data) return;
+        const existing = Chart.getChart(canvasRef.current);
+        if (existing) existing.destroy();
 
-        const existingChart = Chart.getChart(canvasRef.current);
-        if (existingChart) existingChart.destroy();
-        chartRef.current = null;
-
-        chartRef.current = new Chart(canvasRef.current, {
+        const chart = new Chart(canvasRef.current, {
             type: 'doughnut',
             data: {
                 labels: ['부채', '자본'],
                 datasets: [{
                     data: [getChartValue(data.total_liabilities), getChartValue(data.total_equity)],
                     backgroundColor: ['#f87171', '#00cc44'],
-                    borderColor: '#111827',
-                    borderWidth: 2,
+                    borderColor: '#111827', borderWidth: 2,
                 }],
             },
             options: {
@@ -622,28 +560,22 @@ function BalanceChart({ data }: { data?: BalanceSheet }) {
                 },
             },
         });
-
-        return () => { chartRef.current?.destroy(); };
+        return () => { chart.destroy(); };
     }, [data]);
 
     return <div style={{ maxWidth: 200, margin: '0 auto' }}><canvas ref={canvasRef} /></div>;
 }
 
-// ── 현금흐름 막대 차트 ─────────────────────────────────────
 function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; years: string[] }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const chartRef  = useRef<Chart | null>(null);
 
     useEffect(() => {
         if (!canvasRef.current) return;
+        const existing = Chart.getChart(canvasRef.current);
+        if (existing) existing.destroy();
 
-        const existingChart = Chart.getChart(canvasRef.current);
-        if (existingChart) existingChart.destroy();
-        chartRef.current = null;
-
-        const unit = getChartUnit(data);
-
-        chartRef.current = new Chart(canvasRef.current, {
+        const unit  = getChartUnit(data);
+        const chart = new Chart(canvasRef.current, {
             type: 'bar',
             data: {
                 labels: years,
@@ -665,14 +597,15 @@ function CashFlowChart({ data, years }: { data: Record<string, YearFinancial>; y
                 },
             },
         });
-
-        return () => { chartRef.current?.destroy(); };
+        return () => { chart.destroy(); };
     }, [data, years]);
 
     return <canvas ref={canvasRef} style={{ width: '100%' }} />;
 }
 
-// ── 주가 탭 ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 주가 탭
+// ══════════════════════════════════════════════════════════
 function StockTab({ data }: { data?: StockData }) {
     if (!data) return <Empty text="주가 데이터를 불러올 수 없습니다" />;
 
@@ -683,30 +616,17 @@ function StockTab({ data }: { data?: StockData }) {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            {/* 현재가 카드 */}
             <div style={{ padding: 20, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f', textAlign: 'center' }}>
-                {data.ticker && (
-                    <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 4px' }}>{data.ticker}</p>
-                )}
+                {data.ticker && <p style={{ color: '#6b7280', fontSize: 12, margin: '0 0 4px' }}>{data.ticker}</p>}
                 <p style={{ color: '#fff', fontSize: 32, fontWeight: 'bold', margin: '0 0 4px' }}>
                     {data.current_price.toLocaleString()}
                 </p>
                 <p style={{ color: changeColor, fontSize: 18, fontWeight: 'bold', margin: 0 }}>
                     {changeSign}{data.change_pct}%
                 </p>
-                <p style={{ color: '#6b7280', fontSize: 12, margin: '4px 0 0' }}>
-                    전일 {data.prev_close.toLocaleString()}
-                </p>
+                <p style={{ color: '#6b7280', fontSize: 12, margin: '4px 0 0' }}>전일 {data.prev_close.toLocaleString()}</p>
             </div>
 
-            {/* 오늘 장중 */}
-            <SectionCard title="오늘 장중" color="#60a5fa">
-                <FinRow label="고가" value={data.intraday_high?.toLocaleString() ?? '-'} color="#f87171" />
-                <FinRow label="저가" value={data.intraday_low?.toLocaleString()  ?? '-'} color="#00cc44" />
-            </SectionCard>
-
-            {/* 5일 동향 */}
             <SectionCard title="최근 5거래일 (15분봉)" color="#f59e0b">
                 <FinRow label="5일 고가"   value={data.high_5d.toLocaleString()} color="#f87171" />
                 <FinRow label="5일 저가"   value={data.low_5d.toLocaleString()}  color="#00cc44" />
@@ -714,7 +634,6 @@ function StockTab({ data }: { data?: StockData }) {
                 <FinRow label="거래량 추세" value={data.volume_trend} color={volColor} />
             </SectionCard>
 
-            {/* 52주 범위 */}
             <SectionCard title="52주 범위" color="#a78bfa">
                 <FinRow label="52주 고가" value={data.week52_high?.toLocaleString() ?? '-'} color="#f87171" />
                 <FinRow label="52주 저가" value={data.week52_low?.toLocaleString()  ?? '-'} color="#00cc44" />
@@ -737,7 +656,6 @@ function StockTab({ data }: { data?: StockData }) {
                 )}
             </SectionCard>
 
-            {/* 시가총액 */}
             {data.market_cap_억원 && (
                 <SectionCard title="시가총액" color="#888">
                     <p style={{ color: '#e2e8f0', fontSize: 18, fontWeight: 'bold', margin: 0, textAlign: 'center' }}>
@@ -753,7 +671,9 @@ function StockTab({ data }: { data?: StockData }) {
     );
 }
 
-// ── 공시 탭 ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 공시 탭
+// ══════════════════════════════════════════════════════════
 function DisclosureTab({ data }: { data: Disclosure[] }) {
     if (!data.length) return <Empty text="최근 1년간 주요 공시가 없습니다" />;
     return (
@@ -770,7 +690,9 @@ function DisclosureTab({ data }: { data: Disclosure[] }) {
     );
 }
 
-// ── 주주 탭 ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 주주 탭
+// ══════════════════════════════════════════════════════════
 function ShareholderTab({ data }: { data: Shareholder[] }) {
     if (!data || !data.length) return <Empty text="주주 현황 정보가 없습니다" />;
     const filtered = data.filter((s) => s.name && s.name.trim() !== '계');
@@ -794,32 +716,27 @@ function ShareholderTab({ data }: { data: Shareholder[] }) {
     );
 }
 
-// ── 배당 탭 ───────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════
+// 배당 탭
+// ══════════════════════════════════════════════════════════
 function DividendTab({ data }: { data: Dividend[] }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
-    const chartRef  = useRef<Chart | null>(null);
 
     useEffect(() => {
         if (!canvasRef.current || !data.length) return;
-
-        const existingChart = Chart.getChart(canvasRef.current);
-        if (existingChart) existingChart.destroy();
-        chartRef.current = null;
+        const existing = Chart.getChart(canvasRef.current);
+        if (existing) existing.destroy();
 
         const sorted = [...data].sort((a, b) => Number(a.year) - Number(b.year));
-
-        chartRef.current = new Chart(canvasRef.current, {
+        const chart  = new Chart(canvasRef.current, {
             type: 'line',
             data: {
                 labels: sorted.map((d) => `${d.year}년`),
                 datasets: [{
                     label: '배당금 총액 (백만원)',
                     data: sorted.map((d) => d.total_dividend ? Number(d.total_dividend.replace(/,/g, '')) : 0),
-                    borderColor: '#a78bfa',
-                    backgroundColor: 'rgba(167,139,250,0.15)',
-                    pointBackgroundColor: '#a78bfa',
-                    tension: 0.3,
-                    fill: true,
+                    borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.15)',
+                    pointBackgroundColor: '#a78bfa', tension: 0.3, fill: true,
                 }],
             },
             options: {
@@ -834,8 +751,7 @@ function DividendTab({ data }: { data: Dividend[] }) {
                 },
             },
         });
-
-        return () => { chartRef.current?.destroy(); };
+        return () => { chart.destroy(); };
     }, [data]);
 
     if (!data.length) return <Empty text="배당 현황 정보가 없습니다" />;
@@ -847,16 +763,19 @@ function DividendTab({ data }: { data: Dividend[] }) {
             </SectionCard>
             {[...data].sort((a, b) => Number(b.year) - Number(a.year)).map((d) => (
                 <SectionCard key={d.year} title={`${d.year}년 배당`} color="#a78bfa">
-                    <FinRow label="배당금 총액" value={d.total_dividend ? `${Number(d.total_dividend.replace(/,/g,'')).toLocaleString()}백만원` : '-'} />
+                    <FinRow label="배당금 총액" value={d.total_dividend ? `${Number(d.total_dividend.replace(/,/g, '')).toLocaleString()}백만원` : '-'} />
                     <FinRow label="배당 성향"   value={d.dividend_ratio  ? `${d.dividend_ratio}%`  : '-'} />
                     <FinRow label="배당 수익률" value={d.dividend_yield  ? `${d.dividend_yield}%`  : '-'} />
-                    <FinRow label="주당 배당금" value={d.dividend_per_share ? `${Number(d.dividend_per_share.replace(/,/g,'')).toLocaleString()}원` : '-'} />
+                    <FinRow label="주당 배당금" value={d.dividend_per_share ? `${Number(d.dividend_per_share.replace(/,/g, '')).toLocaleString()}원` : '-'} />
                 </SectionCard>
             ))}
         </div>
     );
 }
 
+// ══════════════════════════════════════════════════════════
+// 인사이트 탭
+// ══════════════════════════════════════════════════════════
 function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] }) {
     if (!insight || (insight as any).error) return <Empty text="인사이트를 불러올 수 없습니다" />;
 
@@ -864,47 +783,25 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-
-            {/* 적합도 점수 */}
             <div style={{ padding: 16, background: '#0f172a', borderRadius: 8, border: '1px solid #1e3a5f' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                     <h4 style={{ color: '#60a5fa', margin: 0, fontSize: 14 }}>종합 점수</h4>
                     <span style={{ color: '#fff', fontSize: 28, fontWeight: 'bold' }}>{score.total}점</span>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                    <ScoreBar label="수익성" value={score.profitability} max={25} color="#00cc44" />
-                    <ScoreBar label="안정성" value={score.stability}    max={25} color="#60a5fa" />
-                    <ScoreBar label="성장성" value={score.growth}       max={25} color="#f59e0b" />
-                    <ScoreBar label="현금흐름" value={score.cashflow}   max={25} color="#a78bfa" />
+                    <ScoreBar label="수익성"  value={score.profitability} max={25} color="#00cc44" />
+                    <ScoreBar label="안정성"  value={score.stability}    max={25} color="#60a5fa" />
+                    <ScoreBar label="성장성"  value={score.growth}       max={25} color="#f59e0b" />
+                    <ScoreBar label="현금흐름" value={score.cashflow}    max={25} color="#a78bfa" />
                 </div>
             </div>
 
-            {/* 종합 요약 */}
-            <SectionCard title="한줄 요약" color="#00cc44">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.summary}</p>
-            </SectionCard>
-
-            {/* 섹터 트렌드 */}
-            <SectionCard title="지금 섹터 분위기" color="#f59e0b">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.sector_trend}</p>
-            </SectionCard>
-
-            {/* 분석 카드들 */}
-            <SectionCard title="수익성" color="#00cc44">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.profitability}</p>
-            </SectionCard>
-
-            <SectionCard title="안정성" color="#60a5fa">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.stability}</p>
-            </SectionCard>
-
-            <SectionCard title="성장성" color="#f59e0b">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.growth}</p>
-            </SectionCard>
-
-            <SectionCard title="긍정 포인트" color="#00cc44">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.positive}</p>
-            </SectionCard>
+            <SectionCard title="한줄 요약"        color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.summary}</p></SectionCard>
+            <SectionCard title="지금 섹터 분위기"  color="#f59e0b"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.sector_trend}</p></SectionCard>
+            <SectionCard title="수익성"           color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.profitability}</p></SectionCard>
+            <SectionCard title="안정성"           color="#60a5fa"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.stability}</p></SectionCard>
+            <SectionCard title="성장성"           color="#f59e0b"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.growth}</p></SectionCard>
+            <SectionCard title="긍정 포인트"       color="#00cc44"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.positive}</p></SectionCard>
 
             {insight.price_analysis && (
                 <SectionCard title="📈 주가 흐름 분석" color="#a78bfa">
@@ -912,11 +809,8 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
                 </SectionCard>
             )}
 
-            <SectionCard title="리스크" color="#f87171">
-                <p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.risk}</p>
-            </SectionCard>
+            <SectionCard title="리스크" color="#f87171"><p style={{ color: '#e2e8f0', fontSize: 14, margin: 0, lineHeight: 1.6 }}>{insight.risk}</p></SectionCard>
 
-            {/* 섹터 뉴스 */}
             {news && news.length > 0 && (
                 <SectionCard title="관련 뉴스" color="#888">
                     {news.map((n, i) => (
@@ -928,7 +822,6 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
                 </SectionCard>
             )}
 
-            {/* 면책 */}
             <p style={{ color: '#4b5563', fontSize: 11, textAlign: 'center', margin: 0 }}>
                 본 인사이트는 AI 생성 참고용입니다. 투자 결정의 책임은 본인에게 있습니다.
             </p>
@@ -936,7 +829,9 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
     );
 }
 
-// 점수 바 컴포넌트
+// ══════════════════════════════════════════════════════════
+// 공통 서브 컴포넌트
+// ══════════════════════════════════════════════════════════
 function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
     const pct = Math.round((value / max) * 100);
     return (
@@ -952,7 +847,6 @@ function ScoreBar({ label, value, max, color }: { label: string; value: number; 
     );
 }
 
-// ── 공통 서브 컴포넌트 ─────────────────────────────────────
 function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
         <div style={{ padding: 16, background: '#111827', borderRadius: 8, border: `1px solid ${color}33` }}>

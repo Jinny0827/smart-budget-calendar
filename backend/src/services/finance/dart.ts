@@ -77,6 +77,7 @@ export async function getCompanyInfo(query: string) {
         induty_code: data.induty_code,
         est_dt:      data.est_dt,
         listing_dt:  data.listing_dt,
+        corp_cls:    data.corp_cls,  // 'Y'=KOSPI, 'K'=KOSDAQ, 'N'=KONEX
     };
 }
 

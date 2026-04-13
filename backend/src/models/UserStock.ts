@@ -5,6 +5,8 @@ export interface IUserStock extends Document {
     corpName: string;
     ticker: string;
     stock_code: string;   // KR: 005930 / US: AAPL (ticker와 동일)
+    suffix?: string;      // KR: .KS 또는 .KQ / US: 없음 (Yahoo Finance 심볼용)
+    corp_code?: string;   // KR: DART corp_code / US: SEC CIK
     market: 'kr' | 'us';
     type: 'watchlist' | 'portfolio';
     quantity?: number;
@@ -19,6 +21,8 @@ const UserStockSchema = new Schema<IUserStock>({
     corpName:   { type: String, required: true },
     ticker:     { type: String, required: true },
     stock_code: { type: String, required: true },
+    suffix:     { type: String },
+    corp_code:  { type: String },
     market:     { type: String, enum: ['kr', 'us'], required: true },
     type:       { type: String, enum: ['watchlist', 'portfolio'], required: true },
     quantity:   { type: Number, min: 0 },

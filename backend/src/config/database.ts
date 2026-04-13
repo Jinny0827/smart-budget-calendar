@@ -2,11 +2,13 @@ import mongoose from "mongoose"
 
 export const connectDB = async (): Promise<void> => {
     try {
-        const mongoURI = process.env.MONGODB_URI;
+        const rawURI = process.env.MONGODB_URI;
 
-        if (!mongoURI) {
+        if (!rawURI) {
             throw new Error('MONGODB_URI가 환경변수에 설정되지 않았습니다');
         }
+
+        const mongoURI = rawURI.replace('ssl=true', 'tls=true');
 
         await mongoose.connect(mongoURI);
 
