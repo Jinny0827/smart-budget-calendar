@@ -1,4 +1,3 @@
-import { useNavigate } from 'react-router-dom';
 import {useEffect, useState} from "react";
 import type { Expense, Schedule } from "../types";
 import {
@@ -26,8 +25,6 @@ const emptyForm = {
 };
 
 function ExpensesPage() {
-    const navigate = useNavigate();
-
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [loading, setLoading] = useState(true);

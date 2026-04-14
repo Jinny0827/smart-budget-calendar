@@ -192,8 +192,10 @@ export const getPortfolioInsight = async (req: Request, res: Response): Promise<
     const meta           = await UserFinanceMeta.findOne({ userId });
     const savedInsight   = meta?.portfolioInsight;
 
-    // 종목 변경 없고 1시간 이내면 캐시 반환
+    // 종목 변경 없고 1시간 이내면 캐시 반환 (force=true 시 무시)
+    const force = req.query.force === 'true';
     if (
+        !force &&
         savedInsight &&
         savedInsight.basedOn.sort().join(',') === currentTickers &&
         new Date().getTime() - new Date(savedInsight.generatedAt).getTime() < 60 * 60 * 1000
@@ -205,9 +207,10 @@ export const getPortfolioInsight = async (req: Request, res: Response): Promise<
     // 현재 주가 조회 후 인사이트 생성
     const holdingsWithPrice = await Promise.all(
         holdings.map(async h => {
+            const exchange  = h.suffix?.replace('.', '') as 'KS' | 'KQ' | undefined;
             const priceData = h.market === 'us'
                 ? await getUsStockPrice(h.ticker)
-                : h.stock_code ? await getStockPrice(h.stock_code) : null;
+                : h.stock_code ? await getStockPrice(h.stock_code, exchange) : null;
             return {
                 corpName:     h.corpName,
                 ticker:       h.ticker,

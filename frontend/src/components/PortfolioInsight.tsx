@@ -12,6 +12,8 @@ export function PortfolioInsight({hasPortfolio}: Props) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [expanded, setExpanded] = useState(false);
+    const [lastRefreshed, setLastRefreshed] = useState<number>(0);
+    const COOLDOWN_MS = 5 * 60 * 1000;
 
 
     useEffect(() => {
@@ -22,13 +24,26 @@ export function PortfolioInsight({hasPortfolio}: Props) {
         fetchInsight();
     }, [hasPortfolio]);
 
-    const fetchInsight = async () => {
+    const fetchInsight = async (force = false) => {
+        if(force) {
+            const remaining = COOLDOWN_MS - (Date.now() - lastRefreshed);
+            if (remaining > 0) {
+                const min = Math.ceil(remaining / 60000);
+                alert(`${min}분 후에 새로고침할 수 있습니다`);
+                return;
+            }
+
+            setLastRefreshed(Date.now());
+        }
+
+
         setLoading(true);
         setError(null);
 
         try {
             const token = localStorage.getItem('token');
-            const res   = await fetch(`${API_BASE}/portfolio/insight`, {
+            const url   = force ? `${API_BASE}/portfolio/insight?force=true` : `${API_BASE}/portfolio/insight`;
+            const res   = await fetch(url, {
                 headers: { Authorization: `Bearer ${token}` },
             });
 
@@ -54,7 +69,7 @@ export function PortfolioInsight({hasPortfolio}: Props) {
         <div className="bg-red-50 rounded-lg p-5">
             <p className="text-red-600 text-sm">{error}</p>
             <button
-                onClick={fetchInsight}
+                onClick={() => fetchInsight}
                 className="text-blue-600 hover:underline text-sm mt-1"
             >
                 다시 시도
@@ -81,12 +96,21 @@ export function PortfolioInsight({hasPortfolio}: Props) {
                     <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${riskColor}`}>
                         {insight.riskLevel}
                     </span>
-                    <button
-                        onClick={fetchInsight}
-                        className="text-gray-500 hover:text-gray-800 text-xs"
-                    >
-                        새로고침
-                    </button>
+                    {(() => {
+                        const remaining = COOLDOWN_MS - (Date.now() - lastRefreshed);
+                        const canRefresh = lastRefreshed === 0 || remaining <= 0;
+                        const label = canRefresh ? '새로고침' : `${Math.ceil(remaining / 60000)}분 후 가능`;
+
+                        return (
+                            <button
+                                onClick={() => fetchInsight(true)}
+                                disabled={!canRefresh}
+                                className={`text-xs ${canRefresh ? 'text-gray-500 hover:text-gray-800' : 'text-gray-300 cursor-not-allowed'}`}
+                            >
+                                {label}
+                            </button>
+                        );
+                    })()}
                 </div>
             </div>
 

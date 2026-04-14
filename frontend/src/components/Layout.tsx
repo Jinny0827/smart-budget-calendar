@@ -21,8 +21,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         { path: '/dashboard', label: '대시보드' },
         { path: '/schedules', label: '일정 관리' },
         { path: '/expenses', label: '지출 관리' },
-        { path: '/groups', label: '그룹' },
         { path: '/finance', label: '주식 분석' },
+        { path: '/groups', label: '그룹' },
         { path: '/board', label: '게시판' },
     ];
 
