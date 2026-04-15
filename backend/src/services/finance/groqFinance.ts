@@ -7,10 +7,19 @@ async function callGroq(prompt: string) {
     const res = await axios.post(GROQ_URL, {
         model:           'llama-3.3-70b-versatile',
         messages: [
-            { role: 'system', content: '당신은 주식 투자 전문 재무 분석가입니다. 반드시 JSON 형식으로만 응답하세요.' },
+            {
+                role: 'system',
+                content: `너는 주식이랑 재무를 잘 아는 친한 친구야. 반드시 JSON 형식으로만 응답해.
+톤 규칙:
+- 짧고 직접적으로. 한 문장에 하나의 포인트만.
+- 숫자를 반드시 넣어. "매출이 증가했어" 말고 "매출이 작년 대비 12% 늘었어".
+- 금지 표현: "~할 것으로 판단됩니다", "~에 유의할 필요가 있습니다", "지속적인", "안정적인 재무구조", "불확실성", "~를 고려해야 합니다", "본 종목".
+- 좋으면 좋다고, 나쁘면 나쁘다고 솔직하게. 중립적인 말 늘어놓지 마.
+- 구어체. "~해", "~야", "~네", "~거든" 자연스럽게.`
+            },
             { role: 'user',   content: prompt },
         ],
-        temperature:     0.3,
+        temperature:     0.7,
         response_format: { type: 'json_object' },
     }, { headers: { Authorization: `Bearer ${GROQ_API_KEY}` }, timeout: 30000 });
 
@@ -41,9 +50,6 @@ export async function generateStockInsight(
         : '데이터 없음';
 
     const prompt = `
-너는 주식 재무 분석 전문가야. MZ세대한테 설명하는 스타일로 써. 딱딱한 표현 금지.
-투자 추천은 절대 하지 말고 참고용임을 녹여줘.
-
 분석 대상: ${companyInfo.corp_name} ${isUs ? `(${companyInfo.ticker})` : ''}
 
 3개년 재무:
@@ -58,16 +64,27 @@ ${newsSummary}
 주가 동향:
 ${stockSummary}
 
-아래 JSON으로만 응답:
+각 필드 작성 가이드:
+- summary: 이 회사 지금 어때? 핵심만 2문장. 재무 수치 1개 이상 언급 필수.
+- profitability: 영업이익률/순이익 추이가 실제로 좋아지고 있어 나빠지고 있어? 수치로.
+- stability: 부채비율이나 현금흐름이 버틸 수 있는 구조야? 구체적으로.
+- growth: 매출 성장이 실제로 일어나고 있어? 정체야? 수치 기반으로.
+- sector_trend: 지금 이 업종 분위기가 어때? 뉴스 기반으로 한두 줄.
+- price_analysis: 지금 주가 흐름이 오르는 중이야 내리는 중이야? 최근 등락률 언급.
+- risk: 진짜 걱정되는 거 하나만. 구체적으로.
+- positive: 솔직히 잘 하고 있는 거 하나만. 구체적으로.
+- score: total(0-100), 나머지(0-100 각각). 데이터가 좋으면 높게, 나쁘면 낮게. 후하게 주지 마.
+
+JSON으로만 응답:
 {
-  "summary": "2~3줄 핵심 요약",
-  "profitability": "수익성 분석",
-  "stability": "안정성 분석",
-  "growth": "성장성 분석",
-  "sector_trend": "업황 분석",
-  "price_analysis": "주가 분석",
-  "risk": "리스크 요인",
-  "positive": "긍정 포인트",
+  "summary": "",
+  "profitability": "",
+  "stability": "",
+  "growth": "",
+  "sector_trend": "",
+  "price_analysis": "",
+  "risk": "",
+  "positive": "",
   "score": { "total": 0, "profitability": 0, "stability": 0, "growth": 0, "cashflow": 0 }
 }`;
 
@@ -108,24 +125,27 @@ export async function generatePortfolioInsight(holdings: {
         : `${Math.round(totalValueKrw).toLocaleString()}원`;
 
     const prompt = `
-너는 포트폴리오 전문 투자 분석가야. MZ세대 스타일로 써.
-투자 추천 절대 금지.
-아래 제공된 데이터만 사용해. 네가 알고 있는 외부 지식(뉴스, 시황 등)으로 수익률이나 손익을 임의로 바꾸지 마.
-각 종목의 수익률은 반드시 아래 명시된 값 그대로 사용해. 수익률이 양수면 수익, 음수면 손실이야.
-종목을 언급할 때는 반드시 티커 대신 회사명(corpName)을 사용해.
-
 보유 종목 현황:
 ${holdingsSummary}
 
 총 평가금액(KRW 환산): ${totalDisplay}
 
-아래 JSON으로만 응답:
+규칙: 수익률은 위 데이터 그대로만 써. 임의로 바꾸지 마. 종목명으로만 언급해(티커 X).
+
+각 필드 작성 가이드:
+- summary: 지금 포트폴리오 전체가 어떤 상태야? 총 평가금액이랑 전체 수익/손실 상황 언급. 2문장.
+- riskLevel: "낮음/중간/높음" + 왜 그런지 한 문장. 종목 집중도나 변동성 기반으로.
+- sectorBalance: 특정 섹터에 몰려있어 분산이 잘 돼있어? 솔직하게.
+- rebalancingSuggestion: 수익률 기반으로 지금 포트폴리오에서 비중 조절이 필요한 부분이 있어? 구체적으로.
+- topPick: 현재 포트 중 가장 눈여겨볼 종목 하나. 왜인지 수치로.
+
+JSON으로만 응답:
 {
-  "summary": "포트폴리오 전체 현황 요약 (2~3줄)",
-  "riskLevel": "낮음/중간/높음 + 이유",
-  "sectorBalance": "섹터 분산 평가",
-  "rebalancingSuggestion": "리밸런싱 제안",
-  "topPick": "현재 포트폴리오에서 주목할 종목 + 이유"
+  "summary": "",
+  "riskLevel": "",
+  "sectorBalance": "",
+  "rebalancingSuggestion": "",
+  "topPick": ""
 }`;
 
     return callGroq(prompt);
@@ -180,9 +200,6 @@ export async function generateDashboardInsight(params: {
         : '포트폴리오 없음';
 
     const prompt = `
-너는 개인 재무 종합 분석 전문가야. MZ세대 스타일로 써. 투자 추천 절대 금지.
-제공된 데이터만 사용해. 수익률 등 수치는 절대 임의로 변경하지 마.
-
 ## 이번 달
 - 수입: ${thisMonthIncome.toLocaleString()}원
 - 지출: ${thisMonthExpense.toLocaleString()}원
@@ -198,17 +215,25 @@ export async function generateDashboardInsight(params: {
 ## 30일 내 예정 일정
 ${scheduleLine}
 
-## 보유 포트폴리오 (KRW 환산 기준)
+## 보유 포트폴리오 (KRW 환산)
 ${portfolioLine}
 
-아래 JSON으로만 응답:
+각 필드 작성 가이드:
+- summary: 이번 달 재무 상황 한 줄 요약. 지출이 늘었으면 얼마나, 잔액이 어떤지 수치 포함. 40자 이내.
+- score: 지출 습관 + 일정 관리 + 포트폴리오 종합 점수 0-100. 데이터 없으면 중간값.
+- expense.comment: 지난 달 대비 지출이 어떻게 달라졌어? 가장 많이 쓴 카테고리 언급. 칭찬할 거면 구체적 수치로, 지적할 거면 직접적으로.
+- schedule.comment: 예정 일정 중 재정에 영향 줄 것 있으면 언급. 없으면 "이번 달 일정은 가볍네".
+- portfolio.comment: 포트폴리오 없으면 "아직 주식은 없네". 있으면 수익/손실 상황 한 줄.
+- overall: 위 세 가지 보고 솔직한 한마디. 잘 하고 있으면 인정, 아니면 뭘 바꿔야 할지. 2문장.
+
+JSON으로만 응답:
 {
-  "summary": "전체를 한 줄로 요약 (40자 이내)",
-  "score": 전체_점수_0_100,
-  "expense":   { "score": 별점_1_5, "comment": "지출 관련 한 줄 코멘트" },
-  "schedule":  { "score": 별점_1_5, "comment": "일정 관련 한 줄 코멘트" },
-  "portfolio": { "score": 별점_1_5, "comment": "포트폴리오 관련 한 줄 코멘트 (포트폴리오 없으면 '포트폴리오 없음')" },
-  "overall": "세 가지를 종합한 2~3줄 조언"
+  "summary": "",
+  "score": 0,
+  "expense":   { "score": 0, "comment": "" },
+  "schedule":  { "score": 0, "comment": "" },
+  "portfolio": { "score": 0, "comment": "" },
+  "overall": ""
 }`;
 
     return callGroq(prompt);

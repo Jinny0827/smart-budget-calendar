@@ -304,7 +304,10 @@ function SchedulesPage() {
             category: s.category,
             isRecurring: s.isRecurring,
             recurringPattern: s.recurringPattern ?? { frequency: 'monthly', interval: 1 },
-            recurringEnd: s.recurringEnd ?? { type: 'forever', endDate: '' },
+            recurringEnd: {
+                type: s.recurringEnd?.type ?? 'forever',
+                endDate: s.recurringEnd?.endDate ?? '',
+            },
         });
         setShowModal(true);
     }, [navigate]);
@@ -425,12 +428,12 @@ function SchedulesPage() {
 
             {/* 모바일: 세로 배치 / md 이상: 가로 배치 */}
             <div className="flex flex-col md:flex-row gap-4 items-start">
-            <div className="bg-white p-4 md:p-6 rounded-lg shadow flex-1 min-w-0">
+            <div className="bg-white p-4 md:p-6 rounded-2xl flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-xl md:text-2xl font-bold">일정 관리</h2>
                     <button
                         onClick={() => openCreateModal(new Date())}
-                        className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-[#3182F6] text-white rounded hover:bg-[#1B6EE4] text-sm"
                     >
                         + 일정 추가
                     </button>
@@ -562,7 +565,7 @@ function SchedulesPage() {
             {/* ─── 사이드 패널 ─────────────────────────────── */}
             {/* 사이드패널: 모바일 전체 너비 / md 이상 288px 고정 */}
             {selectedDate && (
-                <div className="w-full md:w-72 md:flex-shrink-0 bg-white rounded-lg shadow border border-gray-200 flex flex-col md:sticky md:top-4" style={{ maxHeight: '780px' }}>
+                <div className="w-full md:w-72 md:flex-shrink-0 bg-white rounded-2xl border border-gray-200 flex flex-col md:sticky md:top-4" style={{ maxHeight: '780px' }}>
                     {/* 패널 헤더 */}
                     <div className="flex justify-between items-start p-4 border-b">
                         <div>
@@ -627,7 +630,7 @@ function SchedulesPage() {
                     <div className="p-3 border-t">
                         <button
                             onClick={() => openCreateModal(selectedDate)}
-                            className="w-full py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                            className="w-full py-2 bg-[#3182F6] text-white rounded-lg text-sm font-medium hover:bg-[#1B6EE4] transition-colors"
                         >
                             + 일정 추가
                         </button>
@@ -653,7 +656,7 @@ function SchedulesPage() {
                                     value={form.title}
                                     onChange={(e) => setForm({ ...form, title: e.target.value })}
                                     placeholder="일정 제목"
-                                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                 />
                             </div>
 
@@ -665,7 +668,7 @@ function SchedulesPage() {
                                         type="date"
                                         value={form.date}
                                         onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                                 <div>
@@ -676,7 +679,7 @@ function SchedulesPage() {
                                         type="time"
                                         value={form.startTime}
                                         onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                             </div>
@@ -692,7 +695,7 @@ function SchedulesPage() {
                                         value={form.endDate}
                                         min={form.date}
                                         onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                                 <div>
@@ -703,7 +706,7 @@ function SchedulesPage() {
                                         type="time"
                                         value={form.endTime}
                                         onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                             </div>
@@ -714,7 +717,7 @@ function SchedulesPage() {
                                 <select
                                     value={form.category}
                                     onChange={(e) => setForm({ ...form, category: e.target.value })}
-                                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                    className="w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                 >
                                     {CATEGORIES.map((cat) => (
                                         <option key={cat} value={cat}>{cat}</option>
@@ -746,7 +749,7 @@ function SchedulesPage() {
                                                 recurringPattern: { frequency: opt.frequency, interval: opt.interval },
                                             });
                                         }}
-                                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                        className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     >
                                         {RECURRING_OPTIONS.map(o => (
                                             <option key={o.value} value={o.value}>{o.label}</option>
@@ -793,7 +796,7 @@ function SchedulesPage() {
                                                         recurringEnd: { type: 'date', endDate: e.target.value },
                                                     })
                                                 }
-                                                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                             />
                                         )}
                                     </div>
@@ -817,7 +820,7 @@ function SchedulesPage() {
                                 <button
                                     onClick={handleSubmit}
                                     disabled={submitting}
-                                    className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm hover:bg-blue-600 disabled:opacity-50"
+                                    className="px-4 py-2 bg-[#3182F6] text-white rounded-lg text-sm hover:bg-[#1B6EE4] disabled:opacity-50"
                                 >
                                     {submitting ? '저장 중...' : '저장'}
                                 </button>

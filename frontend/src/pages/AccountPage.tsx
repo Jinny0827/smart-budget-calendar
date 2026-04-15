@@ -183,7 +183,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                 )}
 
                 {/* 현재 계정 정보 */}
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-2xl p-6">
                     <h2 className="text-lg font-semibold mb-3">계정 정보</h2>
                     <div className="text-sm text-gray-600 space-y-1">
                         <p><span className="font-medium">이름:</span> {user?.name}</p>
@@ -205,7 +205,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                 </div>
 
                 {/* 닉네임 변경 */}
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-2xl p-6">
                     <h2 className="text-lg font-semibold mb-4">닉네임 변경</h2>
                     <form onSubmit={handleNickname} className="space-y-3">
                         <input
@@ -213,7 +213,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                             value={nickname}
                             onChange={(e) => setNickname(e.target.value)}
                             placeholder="새 닉네임 입력"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                             required
                         />
                         {nicknameMsg && (
@@ -224,7 +224,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                         <button
                             type="submit"
                             disabled={nicknameLoading}
-                            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                            className="w-full bg-[#3182F6] text-white py-2 rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                         >
                             {nicknameLoading ? '저장 중...' : '닉네임 저장'}
                         </button>
@@ -232,7 +232,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                 </div>
 
                 {/* 비밀번호 변경 */}
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-2xl p-6">
                     <h2 className="text-lg font-semibold mb-4">비밀번호 변경</h2>
                     <form onSubmit={handlePassword} className="space-y-3">
                         <input
@@ -240,7 +240,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                             value={currentPassword}
                             onChange={(e) => setCurrentPassword(e.target.value)}
                             placeholder="현재 비밀번호"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                             required
                         />
                         <input
@@ -248,7 +248,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                             value={newPassword}
                             onChange={(e) => setNewPassword(e.target.value)}
                             placeholder="새 비밀번호 (6자 이상)"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                             required
                             minLength={6}
                         />
@@ -257,7 +257,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                             value={confirmNewPassword}
                             onChange={(e) => setConfirmNewPassword(e.target.value)}
                             placeholder="새 비밀번호 확인"
-                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                             required
                             minLength={6}
                         />
@@ -269,7 +269,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                         <button
                             type="submit"
                             disabled={passwordLoading}
-                            className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                            className="w-full bg-[#3182F6] text-white py-2 rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                         >
                             {passwordLoading ? '변경 중...' : '비밀번호 변경'}
                         </button>
@@ -277,7 +277,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                 </div>
 
                 {/* OTP 설정 */}
-                <div className="bg-white rounded-lg shadow p-6">
+                <div className="bg-white rounded-2xl p-6">
                     <h2 className="text-lg font-semibold mb-1">2단계 인증 (OTP)</h2>
                     <p className="text-sm text-gray-500 mb-4">Google Authenticator 앱을 사용하는 TOTP 방식이에요.</p>
 
@@ -320,14 +320,14 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                                     onChange={(e) => setOtpCode(e.target.value)}
                                     placeholder="앱에서 생성된 6자리 코드"
                                     maxLength={6}
-                                    className="w-full px-3 py-2 border rounded-lg text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border rounded-lg text-center tracking-widest focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     required
                                     autoFocus
                                 />
                                 <button
                                     type="submit"
                                     disabled={otpLoading || otpCode.length !== 6}
-                                    className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                                    className="w-full bg-[#3182F6] text-white py-2 rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                                 >
                                     {otpLoading ? '활성화 중...' : 'OTP 활성화'}
                                 </button>
@@ -369,7 +369,7 @@ function AccountPage({ standalone = true }: { standalone?: boolean }) {
                 </div>
 
                 {/* 회원탈퇴 */}
-                <div className="bg-white rounded-lg shadow p-6 border border-red-200">
+                <div className="bg-white rounded-2xl p-6 border border-red-200">
                     <h2 className="text-lg font-semibold mb-1 text-red-600">회원탈퇴</h2>
                     <p className="text-sm text-gray-500 mb-4">탈퇴 시 모든 데이터가 삭제되며 복구할 수 없습니다.</p>
 

@@ -232,7 +232,7 @@ function AdminPage() {
                 </div>
 
                 {msg && (
-                    <div className="mb-4 p-3 bg-blue-50 text-blue-700 rounded text-sm">
+                    <div className="mb-4 p-3 bg-[#EBF3FE] text-[#3182F6] rounded text-sm">
                         {msg}
                     </div>
                 )}
@@ -248,7 +248,7 @@ function AdminPage() {
                             key={key}
                             onClick={() => { setTab(key); setMsg(''); setEditingCat(null); setCatForm({ name: '', color: '#B0BEC5' }); }}
                             className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                                tab === key ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700'
+                                tab === key ? 'border-[#3182F6] text-[#3182F6]' : 'border-transparent text-gray-500 hover:text-gray-700'
                             }`}
                         >
                             {label}
@@ -258,13 +258,13 @@ function AdminPage() {
 
                 {/* 사용자 탭 */}
                 {tab === 'users' && (
-                    <div className="bg-white rounded-lg shadow">
+                    <div className="bg-white rounded-2xl">
                         <div className="flex gap-2 p-4 border-b">
                             {(['pending', 'approved', 'rejected', ''] as const).map((f) => (
                                 <button
                                     key={f}
                                     onClick={() => setUserFilter(f)}
-                                    className={`px-3 py-1 rounded text-sm ${userFilter === f ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    className={`px-3 py-1 rounded text-sm ${userFilter === f ? 'bg-[#3182F6] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {f === '' ? '전체' : f === 'pending' ? '대기' : f === 'approved' ? '승인됨' : '거절됨'}
                                 </button>
@@ -316,13 +316,13 @@ function AdminPage() {
 
                 {/* 그룹 탭 */}
                 {tab === 'groups' && (
-                    <div className="bg-white rounded-lg shadow">
+                    <div className="bg-white rounded-2xl">
                         <div className="flex gap-2 p-4 border-b">
                             {(['pending', 'active', ''] as const).map((f) => (
                                 <button
                                     key={f}
                                     onClick={() => setGroupFilter(f)}
-                                    className={`px-3 py-1 rounded text-sm ${groupFilter === f ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                                    className={`px-3 py-1 rounded text-sm ${groupFilter === f ? 'bg-[#3182F6] text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
                                 >
                                     {f === '' ? '전체' : f === 'pending' ? '승인 대기' : '활성'}
                                 </button>
@@ -373,7 +373,7 @@ function AdminPage() {
                 {tab === 'categories' && (
                     <div className="space-y-4">
                         {/* 추가/수정 폼 */}
-                        <div className="bg-white rounded-lg shadow p-4">
+                        <div className="bg-white rounded-2xl p-4">
                             <h3 className="font-medium text-sm mb-3">
                                 {editingCat ? `"${editingCat.name}" 수정` : '카테고리 추가'}
                             </h3>
@@ -397,7 +397,7 @@ function AdminPage() {
                                 <button
                                     onClick={handleSaveCategory}
                                     disabled={actionLoading === 'cat_save' || !catForm.name.trim()}
-                                    className="px-4 py-2 bg-blue-500 text-white text-sm rounded hover:bg-blue-600 disabled:bg-gray-300"
+                                    className="px-4 py-2 bg-[#3182F6] text-white text-sm rounded hover:bg-[#1B6EE4] disabled:bg-gray-300"
                                 >
                                     {editingCat ? '수정' : '추가'}
                                 </button>
@@ -413,7 +413,7 @@ function AdminPage() {
                         </div>
 
                         {/* 카테고리 목록 */}
-                        <div className="bg-white rounded-lg shadow">
+                        <div className="bg-white rounded-2xl">
                             {catLoading ? (
                                 <p className="p-6 text-center text-gray-500 text-sm">불러오는 중...</p>
                             ) : categories.length === 0 ? (

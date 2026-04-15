@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 
 const API_BASE = `${import.meta.env.VITE_API_URL}/insights`;
 
-
 interface DashboardInsightData {
     summary:   string;
     score:     number;
@@ -18,46 +17,41 @@ const COOLDOWN_MS = 5 * 60 * 1000;
 const getLastRefreshed = () => Number(localStorage.getItem(STORAGE_KEY) ?? '0');
 const setLastRefreshed = () => localStorage.setItem(STORAGE_KEY, String(Date.now()));
 
+const SECTION_ITEMS = [
+    { key: 'expense',   label: '지출' },
+    { key: 'schedule',  label: '일정' },
+    { key: 'portfolio', label: '포트폴리오' },
+] as const;
 
-function StarScore( { score }: { score: number }) {
-    return (
-        <span className="text-yellow-400 text-sm">
-            {'★'.repeat(score)}{'☆'.repeat(5 - score)}
-        </span>
-    );
+function scoreBar(score: number) {
+    const pct = Math.min(score, 100);
+    const color = score >= 80 ? '#3182F6' : score >= 55 ? '#F59E0B' : '#F04452';
+    return { pct, color };
 }
 
 export function DashboardInsight() {
-    const [data, setData]       = useState<DashboardInsightData | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError]     = useState(false);
+    const [data, setData]         = useState<DashboardInsightData | null>(null);
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState(false);
     const [expanded, setExpanded] = useState(false);
 
     const fetchInsight = async (force = false) => {
-        if(force) {
+        if (force) {
             const remaining = COOLDOWN_MS - (Date.now() - getLastRefreshed());
             if (remaining > 0) {
                 alert(`${Math.ceil(remaining / 60000)}분 후에 새로고침할 수 있습니다`);
                 return;
             }
-
             setLastRefreshed();
         }
 
         setLoading(true);
         setError(false);
-
         try {
             const token = localStorage.getItem('token');
             const url = force ? `${API_BASE}/dashboard?force=true` : `${API_BASE}/dashboard`;
-            const res = await fetch(url, {
-                headers: { Authorization : `Bearer ${token}` }
-            })
-
-            if(!res.ok) {
-                throw new Error();
-            }
-
+            const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            if (!res.ok) throw new Error();
             setData(await res.json());
         } catch {
             setError(true);
@@ -66,100 +60,113 @@ export function DashboardInsight() {
         }
     };
 
-
-    useEffect(() => {
-        fetchInsight();
-    }, [])
-
-    const scoreColor = (score: number) =>
-        score >= 80 ? 'text-green-600 bg-green-100' : score >= 60 ? 'text-yellow-600 bg-yellow-100' : 'text-red-600 bg-red-100';
+    useEffect(() => { fetchInsight(); }, []);
 
     const canRefresh = getLastRefreshed() === 0 || COOLDOWN_MS - (Date.now() - getLastRefreshed()) <= 0;
 
-    if (loading) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
-                <p className="text-gray-400 text-sm text-center py-4">🤖 AI 종합 분석 중...</p>
-            </div>
-        );
-    }
+    /* ── 로딩 ── */
+    if (loading) return (
+        <div className="bg-white rounded-2xl p-6 md:col-span-2 flex items-center justify-center">
+            <p className="text-sm text-[#8B95A1]">재무 분석 중...</p>
+        </div>
+    );
 
-    if(error || !data) {
-        return (
-            <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
-                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg text-gray-500">
-                    <span className="text-2xl">🔧</span>
-                    <div>
-                        <p className="font-medium">AI 분석 서비스 점검 중입니다</p>
-                        <p className="text-sm text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
-                    </div>
-                </div>
-            </div>
-        );
-    }
-
-    return (
-        <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
-            {/* 헤더 */}
-            <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                    <span className="text-lg">🤖</span>
-                    <span className="text-xl font-bold">AI 재무 인사이트</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className={`text-sm font-bold px-2.5 py-1 rounded-full ${scoreColor(data.score)}`}>
-                        {data.score}점
-                    </span>
+    /* ── 에러 / 데이터 없음 ── */
+    if (error || !data) return (
+        <div className="bg-white rounded-2xl p-6 md:col-span-2">
+            <div className="flex items-center gap-3">
+                <div>
+                    <p className="text-sm font-semibold text-[#191F28]">AI 분석을 불러올 수 없어요</p>
                     <button
-                        onClick={() => fetchInsight(true)}
-                        disabled={!canRefresh}
-                        className={`text-xs ${canRefresh ? 'text-gray-400 hover:text-gray-700' : 'text-gray-200 cursor-not-allowed'}`}
+                        onClick={() => fetchInsight()}
+                        className="text-xs text-[#3182F6] mt-1 hover:underline"
                     >
-                        새로고침
+                        다시 시도
                     </button>
                 </div>
             </div>
+        </div>
+    );
 
-            {/* 한 줄 요약 */}
-            <p className="text-gray-700 text-sm mb-3">{data.summary}</p>
+    const { pct, color } = scoreBar(data.score);
 
-            {/* 더보기 버튼 */}
+    return (
+        <div className="bg-white rounded-2xl overflow-hidden md:col-span-2">
+
+            {/* 헤더 */}
+            <div className="px-5 py-4 border-b border-[#F2F4F6] flex items-center justify-between">
+                <p className="text-sm font-semibold text-[#191F28]">이번 달 재무 요약</p>
+                <button
+                    onClick={() => fetchInsight(true)}
+                    disabled={!canRefresh}
+                    className={`text-xs ${canRefresh ? 'text-[#8B95A1] hover:text-[#3182F6]' : 'text-[#D1D6DB] cursor-not-allowed'}`}
+                >
+                    새로고침
+                </button>
+            </div>
+
+            {/* 종합 점수 + 요약 */}
+            <div className="px-5 py-4 flex items-center gap-4">
+                <div className="shrink-0 text-center">
+                    <p className="text-3xl font-bold" style={{ color }}>{data.score}</p>
+                    <p className="text-[10px] text-[#8B95A1] mt-0.5">/ 100</p>
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden mb-2">
+                        <div
+                            className="h-full rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%`, background: color }}
+                        />
+                    </div>
+                    <p className="text-sm text-[#191F28] leading-relaxed">{data.summary}</p>
+                </div>
+            </div>
+
+            {/* 상세 토글 */}
             <button
                 onClick={() => setExpanded(v => !v)}
-                className="w-full border border-gray-200 rounded-md text-gray-500 text-sm py-2 hover:bg-gray-50"
+                className="w-full px-5 py-3 border-t border-[#F2F4F6] text-xs text-[#8B95A1] hover:text-[#191F28] flex items-center justify-between transition-colors"
             >
-                {expanded ? '접기 ▲' : '상세 분석 보기 ▼'}
+                <span>상세 분석</span>
+                <span>{expanded ? '▲' : '▼'}</span>
             </button>
 
-            {/* 상세 펼침 */}
             {expanded && (
-                <div className="mt-4 flex flex-col gap-3">
-                    {[
-                        { icon: '💸', label: '지출 관리',  data: data.expense },
-                        { icon: '📅', label: '일정 대비',  data: data.schedule },
-                        { icon: '📈', label: '포트폴리오', data: data.portfolio },
-                    ].map(({ icon, label, data: d }) => (
-                        <div key={label} className="flex items-start gap-3 p-4 bg-gray-50 rounded-lg border border-gray-100">
-                            <span className="text-xl">{icon}</span>
-                            <div className="flex-1">
-                                <div className="flex items-center justify-between mb-1">
-                                    <span className="text-sm font-semibold text-gray-700">{label}</span>
-                                    <StarScore score={d.score} />
+                <>
+                    {/* 3개 섹션 */}
+                    {SECTION_ITEMS.map(({ key, label }) => {
+                        const d = data[key];
+                        return (
+                            <div key={key} className="px-5 py-4 border-t border-[#F2F4F6]">
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#8B95A1]">{label}</p>
+                                    <div className="flex gap-0.5">
+                                        {Array.from({ length: 5 }, (_, i) => (
+                                            <div
+                                                key={i}
+                                                className="w-4 h-1.5 rounded-sm"
+                                                style={{ background: i < d.score ? '#3182F6' : '#E5E8EB' }}
+                                            />
+                                        ))}
+                                    </div>
                                 </div>
-                                <p className="text-sm text-gray-600">{d.comment}</p>
+                                <p className="text-sm text-[#191F28] leading-relaxed">{d.comment}</p>
                             </div>
-                        </div>
-                    ))}
+                        );
+                    })}
 
-                    <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                        <p className="text-xs font-bold text-blue-600 mb-1">💡 종합 코멘트</p>
-                        <p className="text-sm text-gray-700 leading-relaxed">{data.overall}</p>
+                    {/* 종합 코멘트 */}
+                    <div className="px-5 py-4 border-t border-[#F2F4F6] bg-[#F8FAFF]">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-[#3182F6] mb-1.5">종합</p>
+                        <p className="text-sm text-[#191F28] leading-relaxed">{data.overall}</p>
                     </div>
 
-                    <p className="text-xs text-gray-400 text-right">
-                        기준: {new Date(data.generatedAt).toLocaleString('ko-KR')}
-                    </p>
-                </div>
+                    <div className="px-5 py-3 border-t border-[#F2F4F6]">
+                        <p className="text-xs text-[#B0B8C1] text-right">
+                            {new Date(data.generatedAt).toLocaleString('ko-KR')} 기준
+                        </p>
+                    </div>
+                </>
             )}
         </div>
     );

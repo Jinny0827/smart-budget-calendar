@@ -770,55 +770,114 @@ function DividendTab({ data }: { data: Dividend[] }) {
 // ══════════════════════════════════════════════════════════
 // 인사이트 탭
 // ══════════════════════════════════════════════════════════
+const SCORE_ITEMS = [
+    { key: 'profitability', label: '수익성' },
+    { key: 'stability',     label: '안정성' },
+    { key: 'growth',        label: '성장성' },
+    { key: 'cashflow',      label: '현금흐름' },
+] as const;
+
+const DETAIL_ITEMS = [
+    { key: 'summary',        label: '요약' },
+    { key: 'profitability',  label: '수익성' },
+    { key: 'stability',      label: '안정성' },
+    { key: 'growth',         label: '성장성' },
+    { key: 'sector_trend',   label: '섹터 분위기' },
+    { key: 'price_analysis', label: '주가 흐름' },
+    { key: 'positive',       label: '긍정 요인' },
+    { key: 'risk',           label: '리스크' },
+] as const;
+
+function scoreColor(v: number) {
+    if (v >= 70) return '#3182F6';
+    if (v >= 45) return '#F59E0B';
+    return '#F04452';
+}
+
 function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] }) {
     if (!insight || (insight as any).error) return <Empty text="인사이트를 불러올 수 없습니다" />;
 
     const { score } = insight;
 
     return (
-        <div className="flex flex-col gap-4">
-            <div className="p-4 bg-white rounded-lg shadow border border-gray-200">
-                <div className="flex justify-between items-center mb-3">
-                    <h4 className="text-blue-600 text-base font-semibold mb-0">종합 점수</h4>
-                    <span className="text-3xl font-bold text-gray-900">{score.total}점</span>
+        <div className="flex flex-col gap-3">
+
+            {/* 종합 점수 */}
+            <div className="bg-white rounded-2xl p-5">
+                <div className="flex items-end justify-between mb-5">
+                    <div>
+                        <p className="text-xs text-[#8B95A1] mb-1">종합 점수</p>
+                        <p className="text-4xl font-bold text-[#191F28]">
+                            {score.total}
+                            <span className="text-lg font-medium text-[#8B95A1] ml-1">/ 100</span>
+                        </p>
+                    </div>
+                    <div
+                        className="w-14 h-14 rounded-full flex items-center justify-center text-white text-sm font-bold"
+                        style={{ background: scoreColor(score.total) }}
+                    >
+                        {score.total >= 70 ? '양호' : score.total >= 45 ? '보통' : '주의'}
+                    </div>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                    <ScoreBar label="수익성"  value={score.profitability} max={25} color="#22c55e" /> {/* green-500 */}
-                    <ScoreBar label="안정성"  value={score.stability}    max={25} color="#3b82f6" /> {/* blue-500 */}
-                    <ScoreBar label="성장성"  value={score.growth}       max={25} color="#f59e0b" /> {/* amber-500 */}
-                    <ScoreBar label="현금흐름" value={score.cashflow}    max={25} color="#a78bfa" /> {/* violet-400 */}
+                <div className="flex flex-col gap-3">
+                    {SCORE_ITEMS.map(({ key, label }) => {
+                        const v = score[key] ?? 0;
+                        const pct = Math.min(Math.round(v), 100);
+                        const c = scoreColor(v);
+                        return (
+                            <div key={key}>
+                                <div className="flex justify-between mb-1">
+                                    <span className="text-xs text-[#8B95A1]">{label}</span>
+                                    <span className="text-xs font-semibold" style={{ color: c }}>{v}</span>
+                                </div>
+                                <div className="h-1.5 bg-[#F2F4F6] rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full transition-all duration-500"
+                                        style={{ width: `${pct}%`, background: c }}
+                                    />
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
-            <SectionCard title="한줄 요약"        color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.summary}</p></SectionCard>
-            <SectionCard title="지금 섹터 분위기"  color="#f59e0b"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.sector_trend}</p></SectionCard>
-            <SectionCard title="수익성"           color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.profitability}</p></SectionCard>
-            <SectionCard title="안정성"           color="#3b82f6"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.stability}</p></SectionCard>
-            <SectionCard title="성장성"           color="#f59e0b"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.growth}</p></SectionCard>
-            <SectionCard title="긍정 포인트"       color="#22c55e"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.positive}</p></SectionCard>
+            {/* 상세 분석 — 하나의 카드 안에 구분선으로 */}
+            <div className="bg-white rounded-2xl overflow-hidden">
+                {DETAIL_ITEMS.map(({ key, label }, idx) => {
+                    const text = (insight as any)[key] as string | undefined;
+                    if (!text) return null;
+                    const isRisk = key === 'risk';
+                    return (
+                        <div
+                            key={key}
+                            className={`px-5 py-4 ${idx !== 0 ? 'border-t border-[#F2F4F6]' : ''} ${isRisk ? 'bg-[#FEF9F9]' : ''}`}
+                        >
+                            <p className={`text-[11px] font-semibold uppercase tracking-widest mb-1.5 ${isRisk ? 'text-[#F04452]' : 'text-[#8B95A1]'}`}>
+                                {label}
+                            </p>
+                            <p className="text-sm text-[#191F28] leading-relaxed">{text}</p>
+                        </div>
+                    );
+                })}
+            </div>
 
-            {insight.price_analysis && (
-                <SectionCard title="📈 주가 흐름 분석" color="#a78bfa"> {/* violet-400 */}
-                    <p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.price_analysis}</p>
-                </SectionCard>
-            )}
-
-            <SectionCard title="리스크" color="#ef4444"><p className="text-gray-800 text-sm mb-0 leading-relaxed">{insight.risk}</p></SectionCard>
-
+            {/* 관련 뉴스 */}
             {news && news.length > 0 && (
-                <SectionCard title="관련 뉴스" color="#6b7280"> {/* gray-600 */}
+                <div className="bg-white rounded-2xl overflow-hidden">
+                    <div className="px-5 py-4 border-b border-[#F2F4F6]">
+                        <p className="text-[11px] font-semibold uppercase tracking-widest text-[#8B95A1]">관련 뉴스</p>
+                    </div>
                     {news.map((n, i) => (
-                        <div key={i} className="py-2.5 border-b border-gray-200 last:border-b-0">
-                            <p className="text-gray-800 text-sm mb-1">{n.title}</p>
-                            <p className="text-gray-600 text-xs mb-0">{n.pubDate.slice(0, 16)}</p>
+                        <div key={i} className="px-5 py-3.5 border-b border-[#F2F4F6] last:border-b-0">
+                            <p className="text-sm text-[#191F28] leading-snug mb-1">{n.title}</p>
+                            <p className="text-xs text-[#8B95A1]">{n.pubDate.slice(0, 16)}</p>
                         </div>
                     ))}
-                </SectionCard>
+                </div>
             )}
 
-            <p className="text-gray-500 text-xs text-center mt-0">
-                본 인사이트는 AI 생성 참고용입니다. 투자 결정에 대한 책임은 본인에게 있습니다.
-            </p>
+            <p className="text-[#B0B8C1] text-xs text-center py-1">AI 생성 참고용 · 투자 판단은 본인 책임</p>
         </div>
     );
 }

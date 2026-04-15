@@ -1,4 +1,4 @@
-import {useEffect, useState} from "react";
+﻿import {useEffect, useState} from "react";
 import type { Expense } from "../types";
 import {
     getExpenses,
@@ -132,7 +132,10 @@ function ExpensesPage() {
             type: expense.type || 'expense',
             isRecurring: expense.isRecurring ?? false,
             recurringPattern: expense.recurringPattern ?? { frequency: 'monthly', interval: 1 },
-            recurringEnd: expense.recurringEnd ?? { type: 'forever', endDate: '' },
+            recurringEnd: {
+                type: expense.recurringEnd?.type ?? 'forever',
+                endDate: expense.recurringEnd?.endDate ?? '',
+            },
         });
         setShowModal(true);
     };
@@ -207,9 +210,9 @@ function ExpensesPage() {
 
     return (
         <>
-            <div className="bg-white p-6 rounded-lg shadow">
+            <div className="bg-white p-6 rounded-2xl">
                 <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
-                    <h2 className="text-2xl font-bold">지출 관리</h2>
+                    <h2 className="text-xl font-bold text-[#191F28]">지출 관리</h2>
 
                     <div className="flex items-center gap-3 flex-wrap">
                         {/* 카테고리 필터 */}
@@ -249,7 +252,7 @@ function ExpensesPage() {
                         </button>
                         <button
                             onClick={handleOpenAdd}
-                            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+                            className="px-4 py-2 bg-[#3182F6] text-white rounded hover:bg-[#1B6EE4]"
                         >
                             + 내역 추가
                         </button>
@@ -258,12 +261,12 @@ function ExpensesPage() {
 
                 {/* 합계 */}
                 {expenses.length > 0 && (
-                    <div className="mb-4 p-3 bg-blue-50 rounded-lg flex flex-wrap justify-between items-center gap-2">
-                        <span className="text-blue-700 font-medium">총 {expenses.length}건</span>
+                    <div className="mb-4 p-3 bg-[#EBF3FE] rounded-lg flex flex-wrap justify-between items-center gap-2">
+                        <span className="text-[#3182F6] font-medium">총 {expenses.length}건</span>
                         <div className="flex gap-4">
                             <span className="text-green-600 font-semibold">수입 +{totalIncome.toLocaleString()}원</span>
-                            <span className="text-red-500 font-semibold">지출 -{totalExpense.toLocaleString()}원</span>
-                            <span className={`font-bold ${balance >= 0 ? 'text-blue-700' : 'text-red-700'}`}>
+                            <span className="text-[#F04452] font-semibold">지출 -{totalExpense.toLocaleString()}원</span>
+                            <span className={`font-bold ${balance >= 0 ? 'text-[#3182F6]' : 'text-red-700'}`}>
                                 잔액 {balance >= 0 ? '+' : ''}{balance.toLocaleString()}원
                             </span>
                         </div>
@@ -325,19 +328,19 @@ function ExpensesPage() {
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 hidden sm:table-cell">
-                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                        <span className="px-2 py-1 bg-blue-100 text-[#3182F6] rounded-full text-xs">
                                             {expense.category}
                                         </span>
                                     </td>
                                     <td className={`py-3 px-4 text-right font-semibold ${
-                                        expense.type === 'income' ? 'text-green-500' : 'text-red-500'
+                                        expense.type === 'income' ? 'text-[#0DCE7A]' : 'text-[#F04452]'
                                     }`}>
                                         {expense.type === 'income' ? '+' : '-'}{expense.amount.toLocaleString()}원
                                     </td>
                                     <td className="py-3 px-4">
                                         <button
                                             onClick={() => handleOpenEdit(expense)}
-                                            className="text-sm text-blue-500 hover:underline"
+                                            className="text-sm text-[#3182F6] hover:underline"
                                         >
                                             수정
                                         </button>
@@ -353,7 +356,7 @@ function ExpensesPage() {
             {/* 추가/수정 모달 */}
             {showModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
                         <h3 className="text-xl font-bold mb-4">
                             {editingId
                                 ? (form.type === 'income' ? '수입 수정' : '지출 수정')
@@ -396,7 +399,7 @@ function ExpensesPage() {
                                     type="number"
                                     value={form.amount}
                                     onChange={(e) => setForm({ ...form, amount: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     placeholder="0"
                                     min="0"
                                 />
@@ -408,7 +411,7 @@ function ExpensesPage() {
                                     type="text"
                                     value={form.description}
                                     onChange={(e) => setForm({ ...form, description: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     placeholder="지출 내용"
                                 />
                             </div>
@@ -418,7 +421,7 @@ function ExpensesPage() {
                                 <select
                                     value={form.category}
                                     onChange={(e) => setForm({ ...form, category: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                 >
                                     {(form.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES).map((cat) => (
                                         <option key={cat} value={cat}>{cat}</option>
@@ -433,7 +436,7 @@ function ExpensesPage() {
                                         type="date"
                                         value={form.date}
                                         onChange={(e) => setForm({ ...form, date: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                                 <div>
@@ -442,7 +445,7 @@ function ExpensesPage() {
                                         type="time"
                                         value={form.time}
                                         onChange={(e) => setForm({ ...form, time: e.target.value })}
-                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                        className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                     />
                                 </div>
                             </div>
@@ -473,7 +476,7 @@ function ExpensesPage() {
                                                         recurringPattern: { frequency: opt.frequency, interval: opt.interval },
                                                     });
                                                 }}
-                                                className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                             >
                                                 {RECURRING_OPTIONS.map(o => (
                                                     <option key={o.value} value={o.value}>{o.label}</option>
@@ -520,7 +523,7 @@ function ExpensesPage() {
                                                                 recurringEnd: { type: 'date', endDate: e.target.value },
                                                             })
                                                         }
-                                                        className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                        className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                                     />
                                                 )}
                                             </div>
@@ -541,7 +544,7 @@ function ExpensesPage() {
                             <button
                                 onClick={handleSubmit}
                                 disabled={submitting}
-                                className="flex-1 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 disabled:bg-gray-400"
+                                className="flex-1 px-4 py-2 bg-[#3182F6] text-white rounded hover:bg-[#1B6EE4] disabled:bg-gray-400"
                             >
                                 {submitting ? '저장 중...' : '저장'}
                             </button>
@@ -553,7 +556,7 @@ function ExpensesPage() {
             {/* 카드 내역 가져오기 모달 */}
             {showImportModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-                    <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+                    <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
                         <h3 className="text-xl font-bold mb-4">카드 내역 가져오기</h3>
 
                         <div className="space-y-4">
@@ -562,7 +565,7 @@ function ExpensesPage() {
                                 <select
                                     value={selectedCard}
                                     onChange={(e) => { setSelectedCard(e.target.value); setImportResult(''); }}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-[#3182F6] text-sm"
                                 >
                                     <option value="삼성카드">삼성카드 ✅ 지원</option>
                                     <option value="신한카드">신한카드 (지원 예정)</option>
@@ -581,7 +584,7 @@ function ExpensesPage() {
                                     type="file"
                                     accept=".xlsx,.xls"
                                     onChange={(e) => setImportFile(e.target.files?.[0] || null)}
-                                    className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                                    className="w-full text-sm text-gray-500 file:mr-3 file:py-2 file:px-4 file:rounded file:border-0 file:bg-[#EBF3FE] file:text-[#3182F6] hover:file:bg-blue-100"
                                 />
                             </div>
 

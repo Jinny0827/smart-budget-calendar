@@ -7,145 +7,124 @@ interface Props {
     hasPortfolio: boolean;
 }
 
-export function PortfolioInsight({hasPortfolio}: Props) {
-    const [insight, setInsight] = useState<IPortfolioInsight | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [expanded, setExpanded] = useState(false);
-    const COOLDOWN_MS = 5 * 60 * 1000;
-    const STORAGE_KEY = 'portfolioInsightLastRefreshed';
-    const getLastRefreshed = () => Number(localStorage.getItem(STORAGE_KEY) ?? '0');
-    const setLastRefreshed = () => localStorage.setItem(STORAGE_KEY, String(Date.now()));
+const COOLDOWN_MS = 5 * 60 * 1000;
+const STORAGE_KEY = 'portfolioInsightLastRefreshed';
+const getLastRefreshed = () => Number(localStorage.getItem(STORAGE_KEY) ?? '0');
+const setLastRefreshed = () => localStorage.setItem(STORAGE_KEY, String(Date.now()));
 
+const DETAIL_ITEMS = [
+    { key: 'sectorBalance',          label: '섹터 분산' },
+    { key: 'rebalancingSuggestion',  label: '리밸런싱' },
+    { key: 'topPick',                label: '주목 종목' },
+] as const;
+
+export function PortfolioInsight({ hasPortfolio }: Props) {
+    const [insight, setInsight]   = useState<IPortfolioInsight | null>(null);
+    const [loading, setLoading]   = useState(false);
+    const [error, setError]       = useState<string | null>(null);
+    const [expanded, setExpanded] = useState(false);
 
     useEffect(() => {
-        if (!hasPortfolio) {
-            return;
-        }
-
-        fetchInsight();
+        if (hasPortfolio) fetchInsight();
     }, [hasPortfolio]);
 
     const fetchInsight = async (force = false) => {
-        if(force) {
+        if (force) {
             const remaining = COOLDOWN_MS - (Date.now() - getLastRefreshed());
             if (remaining > 0) {
-                const min = Math.ceil(remaining / 60000);
-                alert(`${min}분 후에 새로고침할 수 있습니다`);
+                alert(`${Math.ceil(remaining / 60000)}분 후에 새로고침할 수 있습니다`);
                 return;
             }
-
             setLastRefreshed();
         }
 
-
         setLoading(true);
         setError(null);
-
         try {
             const token = localStorage.getItem('token');
-            const url   = force ? `${API_BASE}/portfolio/insight?force=true` : `${API_BASE}/portfolio/insight`;
-            const res   = await fetch(url, {
-                headers: { Authorization: `Bearer ${token}` },
-            });
-
+            const url   = force
+                ? `${API_BASE}/portfolio/insight?force=true`
+                : `${API_BASE}/portfolio/insight`;
+            const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
             if (!res.ok) throw new Error('인사이트 조회 실패');
-            const data = await res.json();
-            setInsight(data);
+            setInsight(await res.json());
         } catch (e: any) {
             setError(e.message);
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     if (!hasPortfolio) return null;
 
-    if (loading) return (
-        <div className="bg-gray-50 rounded-lg p-5 text-center">
-            <p className="text-gray-600 text-sm">포트폴리오 AI 분석 중...</p>
-        </div>
-    );
+    const riskTag = insight
+        ? insight.riskLevel.includes('낮음') ? { label: '낮음', cls: 'bg-[#E8F5E9] text-[#2E7D32]' }
+        : insight.riskLevel.includes('높음') ? { label: '높음', cls: 'bg-[#FEF0F1] text-[#F04452]' }
+        : { label: '중간', cls: 'bg-[#FFF8E1] text-[#F59E0B]' }
+        : null;
 
-    if (error) return (
-        <div className="bg-red-50 rounded-lg p-5">
-            <p className="text-red-600 text-sm">{error}</p>
-            <button
-                onClick={() => fetchInsight}
-                className="text-blue-600 hover:underline text-sm mt-1"
-            >
-                다시 시도
-            </button>
-        </div>
-    );
-
-    if (!insight) return null;
-
-    const riskColor = insight.riskLevel.includes('낮음') ? 'text-green-600 bg-green-100'
-        : insight.riskLevel.includes('높음') ? 'text-red-600 bg-red-100'
-            : 'text-yellow-600 bg-yellow-100';
+    const canRefresh = getLastRefreshed() === 0 || COOLDOWN_MS - (Date.now() - getLastRefreshed()) <= 0;
 
     return (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-5 flex flex-col gap-3">
-
+        <div className="bg-white rounded-2xl overflow-hidden">
             {/* 헤더 */}
-            <div className="flex justify-between items-center">
+            <div className="px-5 py-4 flex items-center justify-between border-b border-[#F2F4F6]">
                 <div className="flex items-center gap-2">
-                    <span className="text-lg">🤖</span>
-                    <span className="text-gray-900 font-bold text-base">포트폴리오 AI 인사이트</span>
+                    <p className="text-sm font-semibold text-[#191F28]">포트폴리오 분석</p>
+                    {riskTag && (
+                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${riskTag.cls}`}>
+                            리스크 {riskTag.label}
+                        </span>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${riskColor}`}>
-                        {insight.riskLevel}
-                    </span>
-                    {(() => {
-                        const remaining = COOLDOWN_MS - (Date.now() - getLastRefreshed());
-                        const canRefresh = getLastRefreshed() === 0 || remaining <= 0;
-                        const label = canRefresh ? '새로고침' : `${Math.ceil(remaining / 60000)}분 후 가능`;
-
-                        return (
-                            <button
-                                onClick={() => fetchInsight(true)}
-                                disabled={!canRefresh}
-                                className={`text-xs ${canRefresh ? 'text-gray-500 hover:text-gray-800' : 'text-gray-300 cursor-not-allowed'}`}
-                            >
-                                {label}
-                            </button>
-                        );
-                    })()}
-                </div>
+                <button
+                    onClick={() => fetchInsight(true)}
+                    disabled={!canRefresh || loading}
+                    className={`text-xs ${canRefresh && !loading ? 'text-[#8B95A1] hover:text-[#3182F6]' : 'text-[#D1D6DB] cursor-not-allowed'}`}
+                >
+                    새로고침
+                </button>
             </div>
 
-            {/* 요약 */}
-            <p className="text-gray-800 text-sm leading-relaxed m-0">
-                {insight.summary}
-            </p>
+            {/* 본문 */}
+            {loading ? (
+                <div className="px-5 py-6 text-center text-sm text-[#8B95A1]">분석 중...</div>
+            ) : error ? (
+                <div className="px-5 py-6 text-center text-sm text-[#F04452]">{error}</div>
+            ) : !insight ? null : (
+                <>
+                    {/* 요약 */}
+                    <div className="px-5 py-4">
+                        <p className="text-sm text-[#191F28] leading-relaxed">{insight.summary}</p>
+                    </div>
 
-            {/* 상세 토글 */}
-            <button
-                onClick={() => setExpanded(v => !v)}
-                className="w-full bg-white border border-gray-200 rounded-md text-gray-600 text-sm py-2 hover:bg-gray-50"
-            >
-                {expanded ? '접기 ▲' : '상세 분석 보기 ▼'}
-            </button>
+                    {/* 상세 토글 */}
+                    <button
+                        onClick={() => setExpanded(v => !v)}
+                        className="w-full px-5 py-3 border-t border-[#F2F4F6] text-xs text-[#8B95A1] hover:text-[#191F28] text-left flex items-center justify-between transition-colors"
+                    >
+                        <span>상세 분석</span>
+                        <span>{expanded ? '▲' : '▼'}</span>
+                    </button>
 
-            {expanded && (
-                <div className="flex flex-col gap-2.5">
-                    {[
-                        { label: '섹터 분산', value: insight.sectorBalance },
-                        { label: '리밸런싱 제안', value: insight.rebalancingSuggestion },
-                        { label: '주목 종목', value: insight.topPick },
-                    ].map(({ label, value }) => (
-                        <div key={label} className="bg-white rounded-lg p-3 border border-gray-200">
-                            <p className="text-blue-600 text-xs font-bold mb-1">{label}</p>
-                            <p className="text-gray-800 text-sm leading-relaxed m-0">{value}</p>
-                        </div>
-                    ))}
-
-                    <p className="text-gray-500 text-xs text-right m-0 mt-1">
-                        기준: {new Date(insight.generatedAt).toLocaleString('ko-KR')}
-                    </p>
-                </div>
+                    {expanded && (
+                        <>
+                            {DETAIL_ITEMS.map(({ key, label }) => (
+                                <div key={key} className="px-5 py-4 border-t border-[#F2F4F6]">
+                                    <p className="text-[11px] font-semibold uppercase tracking-widest text-[#8B95A1] mb-1.5">{label}</p>
+                                    <p className="text-sm text-[#191F28] leading-relaxed">
+                                        {(insight as any)[key]}
+                                    </p>
+                                </div>
+                            ))}
+                            <div className="px-5 py-3 border-t border-[#F2F4F6]">
+                                <p className="text-xs text-[#B0B8C1] text-right">
+                                    {new Date(insight.generatedAt).toLocaleString('ko-KR')} 기준
+                                </p>
+                            </div>
+                        </>
+                    )}
+                </>
             )}
         </div>
     );

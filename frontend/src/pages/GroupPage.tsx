@@ -310,7 +310,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                     <>
                         {/* 받은 초대 */}
                         {pendingInvites.length > 0 && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 space-y-3">
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 space-y-3">
                                 <h2 className="font-semibold text-yellow-800 text-sm">📩 받은 초대</h2>
                                 {pendingInvites.map((g) => (
                                     <div key={g._id} className="flex items-center justify-between">
@@ -335,7 +335,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                         )}
 
                         {/* 코드로 참가 */}
-                        <div className="bg-white rounded-lg shadow p-4">
+                        <div className="bg-white rounded-2xl p-4">
                             <h2 className="font-semibold mb-3 text-sm">코드로 참가</h2>
                             <form onSubmit={handleJoin} className="flex gap-2">
                                 <input
@@ -344,12 +344,12 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                     onChange={(e) => setJoinCode(e.target.value)}
                                     placeholder="초대 코드 입력"
                                     maxLength={6}
-                                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 uppercase"
+                                    className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6] uppercase"
                                 />
                                 <button
                                     type="submit"
                                     disabled={joinLoading || joinCode.length < 6}
-                                    className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                                    className="px-4 py-2 bg-[#3182F6] text-white text-sm rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                                 >
                                     {joinLoading ? '...' : '참가'}
                                 </button>
@@ -357,12 +357,12 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                         </div>
 
                         {/* 내 그룹 목록 */}
-                        <div className="bg-white rounded-lg shadow">
+                        <div className="bg-white rounded-2xl">
                             <div className="flex items-center justify-between p-4 border-b">
                                 <h2 className="font-semibold text-sm">내 그룹</h2>
                                 <button
                                     onClick={() => setView('create')}
-                                    className="px-3 py-1 bg-blue-500 text-white text-xs rounded hover:bg-blue-600"
+                                    className="px-3 py-1 bg-[#3182F6] text-white text-xs rounded hover:bg-[#1B6EE4]"
                                 >
                                     + 그룹 만들기
                                 </button>
@@ -404,7 +404,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
 
                 {/* ── 그룹 생성 뷰 ── */}
                 {view === 'create' && (
-                    <div className="bg-white rounded-lg shadow p-6">
+                    <div className="bg-white rounded-2xl p-6">
                         <p className="text-sm text-gray-500 mb-4">
                             그룹 생성 요청 후 관리자 승인이 필요합니다.
                         </p>
@@ -414,13 +414,13 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                 value={newGroupName}
                                 onChange={(e) => setNewGroupName(e.target.value)}
                                 placeholder="그룹 이름"
-                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                 required
                             />
                             <button
                                 type="submit"
                                 disabled={createLoading}
-                                className="w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                                className="w-full bg-[#3182F6] text-white py-2 rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                             >
                                 {createLoading ? '요청 중...' : '생성 요청'}
                             </button>
@@ -432,7 +432,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                 {view === 'detail' && selectedGroup && (
                     <>
                         {/* 멤버 목록 */}
-                        <div className="bg-white rounded-lg shadow">
+                        <div className="bg-white rounded-2xl">
                             <h2 className="font-semibold p-4 border-b text-sm">멤버</h2>
                             <ul className="divide-y">
                                 {!selectedGroup.members.some(m => getMemberId(m.userId) === getMemberId(selectedGroup.leaderId)) && (
@@ -455,7 +455,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                                     <span className="ml-2 text-xs text-purple-600">그룹장</span>
                                                 )}
                                                 {getMemberId(m.userId) === currentUser?.id && (
-                                                    <span className="ml-2 text-xs text-blue-600">나</span>
+                                                    <span className="ml-2 text-xs text-[#3182F6]">나</span>
                                                 )}
                                             </p>
                                             <p className="text-xs text-gray-500">
@@ -505,7 +505,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                         {isLeader(selectedGroup) && (
                             <>
                                 {/* 이메일 초대 */}
-                                <div className="bg-white rounded-lg shadow p-4">
+                                <div className="bg-white rounded-2xl p-4">
                                     <h2 className="font-semibold mb-3 text-sm">이메일로 초대</h2>
                                     <form onSubmit={handleInvite} className="flex gap-2">
                                         <input
@@ -513,12 +513,12 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                             value={inviteEmail}
                                             onChange={(e) => setInviteEmail(e.target.value)}
                                             placeholder="초대할 이메일"
-                                            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            className="flex-1 px-3 py-2 border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#3182F6]"
                                         />
                                         <button
                                             type="submit"
                                             disabled={inviteLoading}
-                                            className="px-4 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+                                            className="px-4 py-2 bg-[#3182F6] text-white text-sm rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400"
                                         >
                                             {inviteLoading ? '...' : '초대'}
                                         </button>
@@ -526,10 +526,10 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                 </div>
 
                                 {/* 초대 코드 */}
-                                <div className="bg-white rounded-lg shadow p-4">
+                                <div className="bg-white rounded-2xl p-4">
                                     <h2 className="font-semibold mb-3 text-sm">초대 코드</h2>
                                     <div className="flex items-center gap-3">
-                                        <span className="font-mono text-2xl tracking-widest font-bold text-blue-600">
+                                        <span className="font-mono text-2xl tracking-widest font-bold text-[#3182F6]">
                                             {selectedGroup.inviteCode}
                                         </span>
                                         <button
@@ -542,7 +542,7 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                 </div>
 
                                 {/* 공유 설정 */}
-                                <div className="bg-white rounded-lg shadow p-4">
+                                <div className="bg-white rounded-2xl p-4">
                                     <h2 className="font-semibold mb-4 text-sm">공유 설정</h2>
                                     <div className="space-y-3">
                                         {(Object.keys(settingLabels) as (keyof GroupSettings)[]).map((key) => (
@@ -562,14 +562,14 @@ function GroupPage({ standalone = true }: { standalone?: boolean }) {
                                     <button
                                         onClick={handleSaveSettings}
                                         disabled={settingsLoading}
-                                        className="mt-4 w-full bg-blue-500 text-white py-2 rounded-lg hover:bg-blue-600 disabled:bg-gray-400 text-sm"
+                                        className="mt-4 w-full bg-[#3182F6] text-white py-2 rounded-lg hover:bg-[#1B6EE4] disabled:bg-gray-400 text-sm"
                                     >
                                         {settingsLoading ? '저장 중...' : '설정 저장'}
                                     </button>
                                 </div>
 
                                 {/* 그룹 해산 */}
-                                <div className="bg-white rounded-lg shadow p-4 border border-red-100">
+                                <div className="bg-white rounded-2xl p-4 border border-red-100">
                                     <h2 className="font-semibold mb-3 text-sm text-red-600">위험 구역</h2>
                                     <button
                                         onClick={handleDeleteGroup}
