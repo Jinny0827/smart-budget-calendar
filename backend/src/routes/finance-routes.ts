@@ -15,6 +15,7 @@ router.get('/exchange-rate',  fc.exchangeRate);   // 환율 공개 데이터
 router.get   ('/stocks',           authenticationToken, fc.getStocks);
 router.post  ('/stocks',           authenticationToken, fc.addStock);
 router.patch ('/stocks/:id',       authenticationToken, fc.updateStock);
+router.post  ('/stocks/:id/buy',   authenticationToken, fc.addBuy);
 router.delete('/stocks/:id',       authenticationToken, fc.removeStock);
 router.get   ('/history',          authenticationToken, fc.getSearchHistory);
 router.get   ('/portfolio/insight',authenticationToken, fc.getPortfolioInsight);

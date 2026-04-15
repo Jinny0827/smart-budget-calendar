@@ -77,7 +77,7 @@ export const getStocks = async (req: Request, res: Response): Promise<void> => {
 export const addStock = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const { corpName, ticker, symbol, corp_code, market, type, quantity, avgPrice, currency } = req.body;
+        const { corpName, ticker, symbol, corp_code, market, type, quantity, avgPrice, currency, purchaseDate  } = req.body;
 
         if (type === 'portfolio' && (quantity == null || avgPrice == null)) {
             res.status(400).json({ error: '보유 종목은 quantity, avgPrice가 필요합니다' });
@@ -97,9 +97,54 @@ export const addStock = async (req: Request, res: Response): Promise<void> => {
             suffix     = undefined;
         }
 
+        // 기존 등록 주식이면 추가 매입처리
+        const existing = await UserStock.findOne({ userId, ticker, market });
+
+        if(existing  && existing.type === 'portfolio' && type === 'portfolio') {
+            // 추가매입 처리
+            const prevQty     = existing.quantity ?? 0;
+            const prevAvg     = existing.avgPrice ?? 0;
+            const totalQty    = prevQty + Number(quantity);
+            const newAvgPrice = (prevQty * prevAvg + Number(quantity) * Number(avgPrice)) / totalQty;
+
+            const item = await UserStock.findOneAndUpdate(
+                { _id: existing._id },
+                {
+                    quantity: totalQty,
+                    avgPrice: Math.round(newAvgPrice * 100) / 100,
+                    updatedAt: new Date(),
+                    $push: {
+                        transactions: {
+                            type: 'buy',
+                            quantity: Number(quantity),
+                            price: Number(avgPrice),
+                            totalQty,
+                            avgPrice: Math.round(newAvgPrice * 100) / 100,
+                            purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
+                            createdAt: new Date(),
+                        }
+                    }
+                },
+                { new: true }
+            );
+            res.status(200).json({ ...item?.toObject(), merged: true });
+            return;
+        }
+
+
+        const initialTransaction = type === 'portfolio' && quantity && avgPrice ? [{
+            type: 'buy' as const,
+            quantity: Number(quantity),
+            price: Number(avgPrice),
+            totalQty: Number(quantity),
+            avgPrice: Number(avgPrice),
+            purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
+            createdAt: new Date(),
+        }] : [];
+
         const item = await UserStock.findOneAndUpdate(
             { userId, ticker, market },
-            { userId, corpName, ticker, stock_code, suffix, corp_code, market, type, quantity, avgPrice, currency, updatedAt: new Date() },
+            { userId, corpName, ticker, stock_code, suffix, corp_code, market, type, quantity, avgPrice, currency, updatedAt: new Date(), purchaseDate, transactions: initialTransaction },
             { upsert: true, new: true }
         );
         res.status(201).json(item);
@@ -113,16 +158,77 @@ export const updateStock = async (req: Request, res: Response): Promise<void> =>
     try {
         const userId = (req as any).userId;
         const { id }  = req.params;
+        const { quantity, avgPrice, purchaseDate } = req.body;
 
         const item = await UserStock.findOneAndUpdate(
             { _id: id, userId },
-            { ...req.body, updatedAt: new Date() },
+            {
+                quantity, avgPrice, purchaseDate,
+                updatedAt: new Date(),
+                $push: {
+                    transactions: {
+                        type: 'edit',
+                        quantity: Number(quantity),
+                        price: Number(avgPrice),
+                        totalQty: Number(quantity),
+                        avgPrice: Number(avgPrice),
+                        purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
+                        createdAt: new Date(),
+                    }
+                }
+            },
             { new: true }
         );
         if (!item) { res.status(404).json({ error: '종목을 찾을 수 없습니다' }); return; }
         res.json(item);
     } catch (e: any) {
         res.status(500).json({ error: e.message ?? '종목 수정 실패' });
+    }
+};
+
+// 추가 매입 (평단가 자동 계산)
+export const addBuy = async (req: Request, res: Response): Promise<void> => {
+    try {
+        const userId = (req as any).userId;
+        const { id }  = req.params;
+        const { quantity: newQty, avgPrice: newPrice, purchaseDate } = req.body;
+
+        if (!newQty || !newPrice || newQty <= 0 || newPrice <= 0) {
+            res.status(400).json({ error: '수량과 매입가를 올바르게 입력해주세요' });
+            return;
+        }
+
+        const stock = await UserStock.findOne({ _id: id, userId });
+        if (!stock) { res.status(404).json({ error: '종목을 찾을 수 없습니다' }); return; }
+
+        const prevQty      = stock.quantity ?? 0;
+        const prevAvg      = stock.avgPrice ?? 0;
+        const totalQty     = prevQty + Number(newQty);
+        const newAvgPrice  = (prevQty * prevAvg + Number(newQty) * Number(newPrice)) / totalQty;
+
+        const item = await UserStock.findOneAndUpdate(
+            { _id: id, userId },
+            {
+                quantity: totalQty,
+                avgPrice: Math.round(newAvgPrice * 100) / 100,
+                updatedAt: new Date(),
+                $push: {
+                    transactions: {
+                        type: 'buy',
+                        quantity: Number(newQty),
+                        price: Number(newPrice),
+                        totalQty,
+                        avgPrice: Math.round(newAvgPrice * 100) / 100,
+                        purchaseDate: purchaseDate ? new Date(purchaseDate) : undefined,
+                        createdAt: new Date(),
+                    }
+                }
+            },
+            { new: true }
+        );
+        res.json(item);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message ?? '추가 매입 실패' });
     }
 };
 
@@ -204,26 +310,50 @@ export const getPortfolioInsight = async (req: Request, res: Response): Promise<
         return;
     }
 
-    // 현재 주가 조회 후 인사이트 생성
-    const holdingsWithPrice = await Promise.all(
-        holdings.map(async h => {
-            const exchange  = h.suffix?.replace('.', '') as 'KS' | 'KQ' | undefined;
-            const priceData = h.market === 'us'
-                ? await getUsStockPrice(h.ticker)
-                : h.stock_code ? await getStockPrice(h.stock_code, exchange) : null;
-            return {
-                corpName:     h.corpName,
-                ticker:       h.ticker,
-                market:       h.market,
-                quantity:     h.quantity ?? 0,
-                avgPrice:     h.avgPrice ?? 0,
-                currentPrice: priceData?.current_price,
-                currency:     h.currency ?? 'KRW',
-            };
-        })
-    );
+    // 현재 주가 + 환율 병렬 조회
+    // 미국 주식은 getBatchStockPrices(카드와 동일 경로)로 통일하여 가격 불일치 방지
+    const usHoldings = holdings.filter(h => h.market === 'us');
+    const krHoldings = holdings.filter(h => h.market === 'kr');
 
-    const insight = await generatePortfolioInsight(holdingsWithPrice);
+    const usSymbols  = usHoldings.map(h => h.stock_code ?? h.ticker);
+
+    const [batchPrices, krPrices, exchangeRateData] = await Promise.all([
+        usSymbols.length ? getBatchStockPrices(usSymbols) : Promise.resolve({} as Record<string, any>),
+        Promise.all(
+            krHoldings.map(async h => {
+                const exchange  = h.suffix?.replace('.', '') as 'KS' | 'KQ' | undefined;
+                const priceData = h.stock_code ? await getStockPrice(h.stock_code, exchange) : null;
+                return { ticker: h.ticker, current_price: priceData?.current_price };
+            })
+        ),
+        getExchangeRate().catch(() => null),
+    ]);
+
+    // 가격 맵 통합 (ticker → current_price)
+    const krPriceMap: Record<string, number | undefined> = {};
+    krPrices.forEach(p => { krPriceMap[p.ticker] = p.current_price; });
+
+    const holdingsWithPrice = holdings.map(h => {
+        let currentPrice: number | undefined;
+        if (h.market === 'us') {
+            const symbol = h.stock_code ?? h.ticker;
+            currentPrice = batchPrices[symbol]?.current_price;
+        } else {
+            currentPrice = krPriceMap[h.ticker];
+        }
+        return {
+            corpName:     h.corpName,
+            ticker:       h.ticker,
+            market:       h.market,
+            quantity:     h.quantity ?? 0,
+            avgPrice:     h.avgPrice ?? 0,
+            currentPrice,
+            currency:     h.currency ?? 'KRW',
+        };
+    });
+
+    const usdKrw  = exchangeRateData?.usdKrw ?? undefined;
+    const insight = await generatePortfolioInsight(holdingsWithPrice, usdKrw);
 
     // DB 저장
     await UserFinanceMeta.findOneAndUpdate(
