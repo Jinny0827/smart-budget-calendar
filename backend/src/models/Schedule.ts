@@ -13,6 +13,11 @@ export interface ISchedule extends Document {
         frequency: 'daily' | 'weekly' | 'monthly';
         interval: number;
     };
+    recurringEnd?: {
+        type: 'forever' | 'date';
+        endDate?: Date;
+    };
+    recurringGroupId?: string;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -60,7 +65,12 @@ const ScheduleSchema = new Schema<ISchedule>(
                 type: Number,
                 min: 1
             }
-        }
+        },
+        recurringEnd: {
+            type: { type: String, enum: ['forever', 'date'] },
+            endDate: { type: Date },
+        },
+        recurringGroupId: { type: String },
     },
     {
         timestamps: true

@@ -53,7 +53,10 @@ export const getExpenses = async (req: Request, res: Response): Promise<void> =>
 export const createExpense = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const { amount, category, description, date, scheduleId, type } = req.body;
+        const {
+            amount, category, description, date, scheduleId, type,
+            isRecurring, recurringPattern, recurringEnd
+        } = req.body;
 
         // 필수 필드 검증
         if (!amount || !category || !description) {
@@ -64,30 +67,88 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
             return;
         }
 
-        const expense = await Expense.create({
-            userId,
-            amount,
-            category,
-            description,
-            date: date || new Date(),
-            scheduleId,
-            type: type || 'expense'
-        });
-
-        // 일정에 연동된 경우, 일정의 expenses 배열에 추가
-        if (scheduleId) {
-            await Schedule.findByIdAndUpdate(
+        // 반복 아닐 경우 기존과 동일
+        if (!isRecurring) {
+            const expense = await Expense.create({
+                userId, amount, category, description,
+                date: date || new Date(),
                 scheduleId,
-                { $push: { expenses: expense._id } }
-            );
+                type: type || 'expense',
+                isRecurring: false,
+            });
+
+            if (scheduleId) {
+                await Schedule.findByIdAndUpdate(scheduleId, { $push: { expenses: expense._id } });
+            }
+
+            logActivity(userId, 'add_expense', 'expense', expense._id.toString(), { amount: expense.amount, category: expense.category });
+            res.status(201).json({ success: true, message: '지출이 생성되었습니다', data: { expense } });
+            return;
         }
 
-        logActivity(userId, 'add_expense', 'expense', expense._id.toString(), { amount: expense.amount, category: expense.category });
+        // 반복 지출
+        const { frequency = 'monthly', interval = 1 } = recurringPattern || {};
+
+        // 종료 기준 날짜 계산
+        const limitDate = recurringEnd?.type === 'date' && recurringEnd.endDate
+            ? new Date(recurringEnd.endDate)
+            : new Date(Date.now() + 1000 * 60 * 60 * 24 * 365 * 2); // 기본 2년
+
+        // 첫 번째 지출 생성
+        const first = await Expense.create({
+            userId, amount, category, description,
+            date: date || new Date(),
+            scheduleId,
+            type: type || 'expense',
+            isRecurring: true,
+            recurringPattern: { frequency, interval },
+            recurringEnd: recurringEnd || { type: 'forever' },
+            recurringGroupId: 'temp',
+        });
+
+        // recurringGroupId를 자기 자신 _id로 업데이트
+        first.recurringGroupId = first._id.toString();
+        await first.save();
+
+        // 반복 날짜 증가 헬퍼
+        const addInterval = (d: Date): Date => {
+            const next = new Date(d);
+            if (frequency === 'daily')   next.setDate(next.getDate() + interval);
+            if (frequency === 'weekly')  next.setDate(next.getDate() + interval * 7);
+            if (frequency === 'monthly') next.setMonth(next.getMonth() + interval);
+            return next;
+        };
+
+        // 두 번째 이후 지출 생성
+        const copies: any[] = [];
+        let cur = addInterval(new Date(date || new Date()));
+
+        while (cur <= limitDate) {
+            copies.push({
+                userId, amount, category, description,
+                date: new Date(cur),
+                scheduleId,
+                type: type || 'expense',
+                isRecurring: true,
+                recurringPattern: { frequency, interval },
+                recurringEnd: recurringEnd || { type: 'forever' },
+                recurringGroupId: first._id.toString(),
+            });
+            cur = addInterval(cur);
+        }
+
+        if (copies.length > 0) {
+            await Expense.insertMany(copies);
+        }
+
+        logActivity(userId, 'add_expense', 'expense', first._id.toString(), { amount, category });
         res.status(201).json({
             success: true,
-            message: '지출이 생성되었습니다',
-            data: { expense }
+            message: `반복 ${type === 'income' ? '수입' : '지출'} ${copies.length + 1}개가 생성되었습니다`,
+            data: { expense: first, totalCreated: copies.length + 1 },
         });
+
+
     } catch (error) {
         console.error('지출 생성 에러:', error);
         logActivity((req as any).userId, 'add_expense', 'expense', undefined, undefined, 'failed');

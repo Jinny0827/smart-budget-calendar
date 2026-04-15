@@ -22,7 +22,7 @@ import {ko} from "date-fns/locale";
 
 type View = 'list' | 'detail' | 'create';
 
-function GroupPage() {
+function GroupPage({ standalone = true }: { standalone?: boolean }) {
     const navigate = useNavigate();
     const currentUser = getCurrentUser();
 
@@ -280,23 +280,24 @@ function GroupPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-8 px-4">
-            <div className="max-w-2xl mx-auto space-y-4">
+        <div className={standalone ? 'max-w-2xl mx-auto space-y-4' : 'space-y-4'}>
 
-                {/* 헤더 */}
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => view === 'list' ? navigate('/dashboard') : setView('list')}
-                        className="text-gray-500 hover:text-gray-700 text-sm"
-                    >
-                        ← {view === 'list' ? '대시보드' : '목록으로'}
-                    </button>
-                    <h1 className="text-2xl font-bold">
-                        {view === 'list' && '그룹'}
-                        {view === 'create' && '그룹 만들기'}
-                        {view === 'detail' && (selectedGroup?.name || '그룹 상세')}
-                    </h1>
-                </div>
+                {/* 헤더: standalone이거나 detail/create 뷰일 때 표시 */}
+                {(standalone || view !== 'list') && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => view === 'list' ? navigate('/dashboard') : setView('list')}
+                            className="text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            ← {view === 'list' ? '대시보드' : '목록으로'}
+                        </button>
+                        <h1 className="text-2xl font-bold">
+                            {view === 'list' && '그룹'}
+                            {view === 'create' && '그룹 만들기'}
+                            {view === 'detail' && (selectedGroup?.name || '그룹 상세')}
+                        </h1>
+                    </div>
+                )}
 
                 {msg && (
                     <div className={`p-3 rounded text-sm ${isError ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
@@ -582,7 +583,6 @@ function GroupPage() {
                     </>
                 )}
 
-            </div>
         </div>
     );
 }

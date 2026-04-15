@@ -1,5 +1,5 @@
 // frontend/src/pages/SchedulesPage.tsx
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Calendar, dateFnsLocalizer } from 'react-big-calendar';
 import type { View } from 'react-big-calendar';
@@ -31,6 +31,23 @@ const localizer = dateFnsLocalizer({
 // ─── 기본 폴백 색상 ───────────────────────────────────────────
 const DEFAULT_COLOR = '#B0BEC5';
 
+// ─── 반복 주기 옵션 ──────────────────────────────────────────
+const RECURRING_OPTIONS = [
+    { value: 'daily',     label: '매일', frequency: 'daily'   as const, interval: 1 },
+    { value: 'weekly',    label: '매주', frequency: 'weekly'  as const, interval: 1 },
+    { value: 'biweekly',  label: '격주', frequency: 'weekly'  as const, interval: 2 },
+    { value: 'monthly',   label: '매월', frequency: 'monthly' as const, interval: 1 },
+    { value: 'bimonthly', label: '격월', frequency: 'monthly' as const, interval: 2 },
+];
+const getRecurringValue = (frequency: string, interval: number): string => {
+    if (frequency === 'daily')                      return 'daily';
+    if (frequency === 'weekly'  && interval === 1)  return 'weekly';
+    if (frequency === 'weekly'  && interval === 2)  return 'biweekly';
+    if (frequency === 'monthly' && interval === 1)  return 'monthly';
+    if (frequency === 'monthly' && interval === 2)  return 'bimonthly';
+    return 'monthly';
+};
+
 const emptyForm = {
     title: '',
     date: '',
@@ -40,6 +57,7 @@ const emptyForm = {
     category: '기타',
     isRecurring: false,
     recurringPattern: { frequency: 'monthly' as 'daily' | 'weekly' | 'monthly', interval: 1 },
+    recurringEnd: { type: 'forever' as 'forever' | 'date', endDate: '' },
 };
 
 // ─── 캘린더 이벤트 타입 ───────────────────────────────────────
@@ -286,6 +304,7 @@ function SchedulesPage() {
             category: s.category,
             isRecurring: s.isRecurring,
             recurringPattern: s.recurringPattern ?? { frequency: 'monthly', interval: 1 },
+            recurringEnd: s.recurringEnd ?? { type: 'forever', endDate: '' },
         });
         setShowModal(true);
     }, [navigate]);
@@ -296,9 +315,14 @@ function SchedulesPage() {
             alert('제목, 날짜, 카테고리를 입력해주세요');
             return;
         }
-        if (form.endDate && form.endDate < form.date) {
-            alert('종료일은 시작일 이후여야 합니다');
-            return;
+        // 시작/종료 시간 포함한 전체 datetime 비교
+        if (form.endDate || form.endTime) {
+            const startDt = new Date(`${form.date}T${form.startTime || '00:00'}`);
+            const endDt   = new Date(`${(form.endDate || form.date)}T${form.endTime || '00:00'}`);
+            if (endDt <= startDt) {
+                alert('종료 일시는 시작 일시 이후여야 합니다');
+                return;
+            }
         }
         try {
             setSubmitting(true);
@@ -307,6 +331,12 @@ function SchedulesPage() {
                 date: form.startTime ? `${form.date}T${form.startTime}` : form.date,
                 endDate: form.endDate
                     ? (form.endTime ? `${form.endDate}T${form.endTime}` : form.endDate)
+                    : undefined,
+                recurringEnd: form.isRecurring
+                    ? {
+                        type: form.recurringEnd.type,
+                        endDate: form.recurringEnd.type === 'date' ? form.recurringEnd.endDate : undefined,
+                    }
                     : undefined,
             };
             if (editingId) {
@@ -335,6 +365,38 @@ function SchedulesPage() {
         }
     };
 
+    // ─── 월 이동 헬퍼 ───────────────────────────────────────
+    const navigateMonth = useCallback((direction: 'prev' | 'next') => {
+        setCurrentDate(prev => {
+            const d = new Date(prev);
+            d.setMonth(d.getMonth() + (direction === 'next' ? 1 : -1));
+            return d;
+        });
+    }, []);
+
+    // ─── 마우스 스크롤 → 월 이동 (month 뷰만, 500ms 디바운스) ──
+    const lastScrollTime = useRef<number>(0);
+    const handleWheel = useCallback((e: React.WheelEvent) => {
+        if (currentView !== 'month') return;
+        const now = Date.now();
+        if (now - lastScrollTime.current < 500) return; // 너무 빠른 연속 스크롤 방지
+        lastScrollTime.current = now;
+        navigateMonth(e.deltaY > 0 ? 'next' : 'prev');
+    }, [currentView, navigateMonth]);
+
+    // ─── 터치 스와이프 → 월 이동 (month 뷰만, 50px 임계값) ──
+    const touchStartX = useRef<number>(0);
+    const handleTouchStart = useCallback((e: React.TouchEvent) => {
+        touchStartX.current = e.touches[0].clientX;
+    }, []);
+    const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+        if (currentView !== 'month') return;
+        const diff = touchStartX.current - e.changedTouches[0].clientX;
+        if (Math.abs(diff) > 50) { // 50px 이상 스와이프할 때만 이동
+            navigateMonth(diff > 0 ? 'next' : 'prev');
+        }
+    }, [currentView, navigateMonth]);
+
     const messages = {
         today: '오늘', previous: '◀', next: '▶',
         month: '월', week: '주', day: '일', agenda: '목록',
@@ -361,20 +423,21 @@ function SchedulesPage() {
         <>
             {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
 
-            <div className="flex gap-4 items-start">
-            <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-0">
+            {/* 모바일: 세로 배치 / md 이상: 가로 배치 */}
+            <div className="flex flex-col md:flex-row gap-4 items-start">
+            <div className="bg-white p-4 md:p-6 rounded-lg shadow flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-4">
-                    <h2 className="text-2xl font-bold">일정 관리</h2>
+                    <h2 className="text-xl md:text-2xl font-bold">일정 관리</h2>
                     <button
                         onClick={() => openCreateModal(new Date())}
-                        className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
+                        className="px-3 py-1.5 md:px-4 md:py-2 bg-blue-500 text-white rounded hover:bg-blue-600 text-sm"
                     >
                         + 일정 추가
                     </button>
                 </div>
 
-                {/* 범례 */}
-                <div className="flex flex-wrap gap-4 mb-4 text-xs text-gray-600">
+                {/* 범례: 모바일에서 gap 줄임 */}
+                <div className="flex flex-wrap gap-2 md:gap-4 mb-4 text-xs text-gray-600">
                     {CATEGORIES.map((cat) => (
                         <span key={cat} className="flex items-center gap-1">
                             <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: CATEGORY_COLORS[cat] ?? DEFAULT_COLOR }} />
@@ -406,12 +469,17 @@ function SchedulesPage() {
                 {loading ? (
                     <div className="text-center py-20 text-gray-400">로딩 중...</div>
                 ) : (
+                    <div
+                        onWheel={handleWheel}
+                        onTouchStart={handleTouchStart}
+                        onTouchEnd={handleTouchEnd}
+                    >
                     <Calendar
                         localizer={localizer}
                         events={events}
                         startAccessor="start"
                         endAccessor="end"
-                        style={{ height: 680 }}
+                        style={{ height: typeof window !== 'undefined' && window.innerWidth < 768 ? 450 : 680 }}
                         view={currentView}
                         onView={setCurrentView}
                         date={currentDate}
@@ -487,12 +555,14 @@ function SchedulesPage() {
                             },
                         }}
                     />
+                    </div>
                 )}
             </div>
 
             {/* ─── 사이드 패널 ─────────────────────────────── */}
+            {/* 사이드패널: 모바일 전체 너비 / md 이상 288px 고정 */}
             {selectedDate && (
-                <div className="w-72 flex-shrink-0 bg-white rounded-lg shadow border border-gray-200 flex flex-col sticky top-4" style={{ maxHeight: '780px' }}>
+                <div className="w-full md:w-72 md:flex-shrink-0 bg-white rounded-lg shadow border border-gray-200 flex flex-col md:sticky md:top-4" style={{ maxHeight: '780px' }}>
                     {/* 패널 헤더 */}
                     <div className="flex justify-between items-start p-4 border-b">
                         <div>
@@ -665,40 +735,68 @@ function SchedulesPage() {
                             </div>
 
                             {form.isRecurring && (
-                                <div className="flex gap-3 pl-6 items-center">
+                                <div className="pl-6 space-y-3">
+                                    {/* 주기 설정 */}
                                     <select
-                                        value={form.recurringPattern.frequency}
-                                        onChange={(e) =>
+                                        value={getRecurringValue(form.recurringPattern.frequency, form.recurringPattern.interval)}
+                                        onChange={(e) => {
+                                            const opt = RECURRING_OPTIONS.find(o => o.value === e.target.value)!;
                                             setForm({
                                                 ...form,
-                                                recurringPattern: {
-                                                    ...form.recurringPattern,
-                                                    frequency: e.target.value as 'daily' | 'weekly' | 'monthly',
-                                                },
-                                            })
-                                        }
+                                                recurringPattern: { frequency: opt.frequency, interval: opt.interval },
+                                            });
+                                        }}
                                         className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                                     >
-                                        <option value="daily">매일</option>
-                                        <option value="weekly">매주</option>
-                                        <option value="monthly">매월</option>
+                                        {RECURRING_OPTIONS.map(o => (
+                                            <option key={o.value} value={o.value}>{o.label}</option>
+                                        ))}
                                     </select>
-                                    <input
-                                        type="number"
-                                        min={1}
-                                        value={form.recurringPattern.interval}
-                                        onChange={(e) =>
-                                            setForm({
-                                                ...form,
-                                                recurringPattern: {
-                                                    ...form.recurringPattern,
-                                                    interval: Number(e.target.value),
-                                                },
-                                            })
-                                        }
-                                        className="w-20 border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                                    />
-                                    <span className="text-sm text-gray-500">회마다</span>
+
+                                    {/* 반복 종료 */}
+                                    <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">반복 종료</p>
+                                        <div className="flex gap-4">
+                                            <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="schedRecurringEnd"
+                                                    checked={form.recurringEnd.type === 'forever'}
+                                                    onChange={() =>
+                                                        setForm({ ...form, recurringEnd: { type: 'forever', endDate: '' } })
+                                                    }
+                                                    className="accent-blue-500"
+                                                />
+                                                계속
+                                            </label>
+                                            <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                                                <input
+                                                    type="radio"
+                                                    name="schedRecurringEnd"
+                                                    checked={form.recurringEnd.type === 'date'}
+                                                    onChange={() =>
+                                                        setForm({ ...form, recurringEnd: { type: 'date', endDate: '' } })
+                                                    }
+                                                    className="accent-blue-500"
+                                                />
+                                                날짜 지정
+                                            </label>
+                                        </div>
+                                        {form.recurringEnd.type === 'date' && (
+                                            <input
+                                                type="date"
+                                                value={form.recurringEnd.endDate}
+                                                min={form.date}
+                                                onChange={(e) =>
+                                                    setForm({
+                                                        ...form,
+                                                        recurringEnd: { type: 'date', endDate: e.target.value },
+                                                    })
+                                                }
+                                                className="border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             )}
                         </div>

@@ -182,13 +182,13 @@ export default function FinancePage() {
                 }
             </div>
 
-            {/* ── 페이지 탭 ── */}
+            {/* ── 페이지 탭: py-3으로 터치 타겟 확보 (모바일 최소 44px) ── */}
             <div className="flex border-b border-gray-200 mb-4">
                 {([['mystock', '내 종목'], ['analyze', '기업 분석']] as const).map(([key, label]) => (
                     <button
                         key={key}
                         onClick={() => setPageTab(key)}
-                        className={`px-4 py-2 text-sm font-medium ${
+                        className={`flex-1 sm:flex-none px-4 py-3 text-sm font-medium ${
                             pageTab === key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600 border-b-2 border-transparent'
                         }`}
                     >
@@ -355,7 +355,7 @@ export default function FinancePage() {
                                         <button
                                             key={key}
                                             onClick={() => setTab(key)}
-                                            className={`flex-shrink-0 px-3 py-2 text-xs font-medium ${
+                                            className={`flex-shrink-0 px-3 py-3 text-xs font-medium ${
                                                 tab === key ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-600 hover:text-blue-600 border-b-2 border-transparent'
                                             }`}
                                         >

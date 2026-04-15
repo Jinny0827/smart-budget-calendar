@@ -43,7 +43,7 @@ export const getSchedules = async (req: Request, res: Response): Promise<void> =
 export const createSchedule = async (req: Request, res: Response): Promise<void> => {
     try {
         const userId = (req as any).userId;
-        const { title, date, endDate, category, isRecurring, recurringPattern } = req.body;
+        const { title, date, endDate, category, isRecurring, recurringPattern, recurringEnd } = req.body;
 
         // 필수 필드 검증
         if (!title || !date || !category) {
@@ -53,22 +53,79 @@ export const createSchedule = async (req: Request, res: Response): Promise<void>
             });
             return;
         }
+        
+        // 일반 일정
+        if (!isRecurring) {
+            const schedule = await Schedule.create({
+                userId, title, date,
+                endDate: endDate || undefined,
+                category,
+                isRecurring: false,
+            });
 
-        const schedule = await Schedule.create({
-            userId,
-            title,
-            date,
+            logActivity(userId, 'add_schedule', 'schedule', schedule._id.toString(), { title: schedule.title });
+            res.status(201).json({ success: true, message: '일정이 생성되었습니다', data: { schedule } });
+            return;
+        }
+
+        // 반복 일정 자동 확장
+        const { frequency = 'monthly', interval = 1 } = recurringPattern || {};
+        
+        // 종료 기준 날짜 계산
+        const limitDate = recurringEnd?.type === 'date' && recurringEnd.endDate
+            ? new Date(recurringEnd.endDate) : new Date(Date.now() + 1000 * 60 *60 * 24 * 365 * 2);
+
+        // 기본 일정 생성
+        const first = await Schedule.create({
+            userId, title, date,
             endDate: endDate || undefined,
             category,
-            isRecurring: isRecurring || false,
-            recurringPattern
-        });
+            isRecurring: true,
+            recurringPattern: { frequency, interval },
+            recurringEnd: recurringEnd || { type: 'forever' },
+            recurringGroupId: 'temp', // 일단 임시값
+        })
 
-        logActivity(userId, 'add_schedule', 'schedule', schedule._id.toString(), { title: schedule.title });
+        // recurringGroupId를 자기 자신 _id로 업데이트
+        first.recurringGroupId = first._id.toString();
+        await first.save();
+
+        // 반복 날짜 증가 헬퍼
+        const addInterval = (d: Date): Date => {
+            const next = new Date(d);
+            if (frequency === 'daily')   next.setDate(next.getDate() + interval);
+            if (frequency === 'weekly')  next.setDate(next.getDate() + interval * 7);
+            if (frequency === 'monthly') next.setMonth(next.getMonth() + interval);
+            return next;
+        }
+
+        // 기본 일정 후 반복 일정 생성
+        const copies: any[] = [];
+        let cur = addInterval(new Date(date || new Date()));
+
+        while (cur <= limitDate) {
+            copies.push({
+                userId, title,
+                date: new Date(cur),
+                endDate: endDate || undefined,
+                category,
+                isRecurring: true,
+                recurringPattern: { frequency, interval },
+                recurringEnd: recurringEnd || { type: 'forever' },
+                recurringGroupId: first._id.toString(),
+            });
+            cur = addInterval(cur);
+        };
+
+        if(copies.length > 0) {
+            await Schedule.insertMany(copies);
+        }
+        
+        logActivity(userId, 'add_schedule', 'schedule', first._id.toString(), { title });
         res.status(201).json({
             success: true,
-            message: '일정이 생성되었습니다',
-            data: { schedule }
+            message: `반복 일정 ${copies.length + 1}개가 생성되었습니다`,
+            data: { schedule: first, totalCreated: copies.length + 1 },
         });
     } catch (error) {
         console.error('일정 생성 에러:', error);

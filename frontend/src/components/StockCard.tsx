@@ -41,11 +41,13 @@ export default function StockCard({ stock, price, usdKrw, onRemove, onEdit, onAd
         : null;
 
     return (
+        // 카드 자체는 인라인 스타일 유지하되 Tailwind cursor 클래스 병행
         <div
             onClick={() => onDetail(stock)}
+            className="cursor-pointer"
             style={{
             background: '#111827', borderRadius: 12,
-            padding: '14px 16px', display: 'flex',
+            padding: '12px 14px', display: 'flex',
             flexDirection: 'column', gap: 8,
         }}>
             {/* 종목명 + 삭제 */}

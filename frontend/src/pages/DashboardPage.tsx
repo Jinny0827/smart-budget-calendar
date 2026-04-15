@@ -101,8 +101,8 @@ function DashboardPage() {
                 <div className="text-center py-12 text-gray-500">로딩 중...</div>
             ) : (
                 <>
-                    {/* 요약 카드 */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                    {/* 요약 카드: 모바일 gap-3/mb-4, 데스크톱 gap-6/mb-8 */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8">
                         <div className="bg-white p-6 rounded-lg shadow">
                             <h2 className="text-sm text-gray-500 mb-1">이번 달 수입</h2>
                             <p className="text-3xl font-bold text-green-600">+{totalIncome.toLocaleString()}원</p>
@@ -122,7 +122,7 @@ function DashboardPage() {
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-6">
 
                         {/* 파이차트: 카테고리별 지출 */}
                         <div className="bg-white p-6 rounded-lg shadow">
