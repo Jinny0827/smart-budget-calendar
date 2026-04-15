@@ -1,12 +1,11 @@
 import {useEffect, useState} from "react";
-import type { Expense, Schedule } from "../types";
+import type { Expense } from "../types";
 import {
     getExpenses,
     createExpense,
     updateExpense,
     deleteExpense,
 } from "../services/expense-service.ts";
-import { getSchedules } from "../services/schedule-service.ts";
 import { importCardHistory } from "../services/import-service.ts";
 
 // 카테고리 목록 (type별 분리)
@@ -20,13 +19,11 @@ const emptyForm = {
     description: '',
     date: new Date().toISOString().split('T')[0],
     time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
-    scheduleId: '',
     type: 'expense' as 'income' | 'expense',
 };
 
 function ExpensesPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
-    const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -50,12 +47,8 @@ function ExpensesPage() {
     const fetchExpenses = async() => {
         try {
             setLoading(true);
-            const [expenseData, scheduleData] = await Promise.all([
-                getExpenses(filterCategory ? { category: filterCategory } : undefined),
-                getSchedules(),
-            ]);
+            const expenseData = await getExpenses(filterCategory ? { category: filterCategory } : undefined);
             setExpenses(expenseData);
-            setSchedules(scheduleData);
         } catch (err) {
             setError('지출을 불러오는데 실패했습니다');
         } finally {
@@ -85,7 +78,6 @@ function ExpensesPage() {
             description: expense.description,
             date: expense.date.split('T')[0],
             time: timeStr,
-            scheduleId: expense.scheduleId || '',
             type: expense.type || 'expense',
         });
         setShowModal(true);
@@ -104,7 +96,6 @@ function ExpensesPage() {
                 category: form.category,
                 description: form.description,
                 date: form.time ? `${form.date}T${form.time}` : form.date,
-                scheduleId: form.scheduleId || undefined,
                 type: form.type,
             };
             if (editingId) {
@@ -232,7 +223,6 @@ function ExpensesPage() {
                                 <th className="py-3 px-4 text-sm text-gray-600">설명</th>
                                 <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">유형</th>
                                 <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">카테고리</th>
-                                <th className="py-3 px-4 text-sm text-gray-600 hidden lg:table-cell">연결 일정</th>
                                 <th className="py-3 px-4 text-sm text-gray-600 text-right">금액</th>
                                 <th className="py-3 px-4 text-sm text-gray-600">관리</th>
                             </tr>
@@ -257,11 +247,6 @@ function ExpensesPage() {
                                             <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
                                                 {expense.category}
                                             </span>
-                                    </td>
-                                    <td className="py-3 px-4 text-gray-400 text-sm hidden lg:table-cell">
-                                        {expense.scheduleId
-                                            ? schedules.find((s) => s._id === expense.scheduleId)?.title || '-'
-                                            : '-'}
                                     </td>
                                     <td className={`py-3 px-4 text-right font-semibold ${
                                         expense.type === 'income' ? 'text-green-500' : 'text-red-500'
@@ -387,21 +372,6 @@ function ExpensesPage() {
                                 </div>
                             </div>
 
-                            <div>
-                                <label className="block text-sm text-gray-700 mb-1">연결 일정 (선택)</label>
-                                <select
-                                    value={form.scheduleId}
-                                    onChange={(e) => setForm({ ...form, scheduleId: e.target.value })}
-                                    className="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                >
-                                    <option value="">없음</option>
-                                    {schedules.map((s) => (
-                                        <option key={s._id} value={s._id}>
-                                            {s.title} ({new Date(s.date).toLocaleDateString('ko-KR')})
-                                        </option>
-                                    ))}
-                                </select>
-                            </div>
                         </div>
 
                         <div className="flex gap-3 mt-6">

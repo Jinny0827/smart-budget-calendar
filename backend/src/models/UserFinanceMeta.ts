@@ -16,6 +16,15 @@ export interface IUserFinanceMeta extends Document {
         basedOn: string[];
         generatedAt: Date;
     } | null;
+    dashboardInsight: {
+        summary: string;
+        score: number;
+        expense:   { score: number; comment: string };
+        schedule:  { score: number; comment: string };
+        portfolio: { score: number; comment: string };
+        overall: string;
+        generatedAt: Date;
+    } | null;
 }
 
 const UserFinanceMetaSchema = new Schema<IUserFinanceMeta>({
@@ -33,6 +42,15 @@ const UserFinanceMetaSchema = new Schema<IUserFinanceMeta>({
         topPick:               { type: String },
         basedOn:               { type: [String], default: [] },
         generatedAt:           { type: Date },
+    },
+    dashboardInsight: {
+        summary:   { type: String },
+        score:     { type: Number },
+        expense:   { score: { type: Number }, comment: { type: String } },
+        schedule:  { score: { type: Number }, comment: { type: String } },
+        portfolio: { score: { type: Number }, comment: { type: String } },
+        overall:   { type: String },
+        generatedAt: { type: Date },
     },
 });
 

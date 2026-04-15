@@ -137,6 +137,16 @@ export interface UserStock {
     currency?: 'KRW' | 'USD';
     addedAt: string;
     updatedAt: string;
+    purchaseDate?: string;
+    transactions?: {
+        type: 'buy' | 'edit';
+        quantity: number;
+        price: number;
+        totalQty: number;
+        avgPrice: number;
+        purchaseDate?: string;
+        createdAt: string;
+    }[]
 }
 
 export interface PortfolioInsight {

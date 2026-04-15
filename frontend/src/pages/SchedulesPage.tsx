@@ -16,6 +16,7 @@ import { getHolidays } from '../services/holiday-service';
 import { getCategories } from '../services/admin-service';
 import type { Category } from '../services/admin-service';
 import type { Schedule, Expense } from '../types';
+import type { UserStock } from '../types/finance';
 
 // ─── date-fns 로컬라이저 설정 ────────────────────────────────
 const locales = { ko };
@@ -47,8 +48,8 @@ interface CalendarEvent {
     title: string;
     start: Date;
     end: Date;
-    type: 'schedule' | 'expense' | 'income';
-    resource: Schedule | Expense;
+    type: 'schedule' | 'expense' | 'income' | 'stock';
+    resource: Schedule | Expense | UserStock;
 }
 
 function SchedulesPage() {
@@ -78,6 +79,10 @@ function SchedulesPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [submitting, setSubmitting] = useState(false);
+    const [stocks, setStocks] = useState<UserStock[]>([]);
+
+    // ─── 사이드 패널 ─────────────────────────────────────────
+    const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
     // ─── 데이터 로드 ─────────────────────────────────────────
     const fetchAll = async () => {
@@ -102,6 +107,14 @@ function SchedulesPage() {
             });
             setHolidaySet(newSet);
             setHolidayNameMap(newMap);
+
+            const token = localStorage.getItem('token');
+            const stockRes = await fetch(`${import.meta.env.VITE_API_URL}/finance/stocks`, {
+                headers : { Authorization: `Bearer ${token}` },
+            });
+
+            const stockData: UserStock[]  = stockRes.ok ? await stockRes.json() : [];
+            setStocks(stockData.filter(s => s.type === 'portfolio'));
         } catch {
             setError('데이터를 불러오는데 실패했습니다');
         } finally {
@@ -122,6 +135,7 @@ function SchedulesPage() {
     }, []);
 
     // ─── 이벤트 변환 ─────────────────────────────────────────
+    // 일정 이벤트
     const scheduleEvents: CalendarEvent[] = schedules.flatMap((s) => {
         const start = new Date(s.date);
         const end = s.endDate ? new Date(s.endDate) : start;
@@ -155,6 +169,7 @@ function SchedulesPage() {
         return events;
     });
 
+    // 지출 이벤트
     const expenseEvents: CalendarEvent[] = expenses.map((e) => {
         const date = new Date(e.date);
         const isIncome = e.type === 'income';
@@ -168,10 +183,37 @@ function SchedulesPage() {
         };
     });
 
-    const events: CalendarEvent[] = [...scheduleEvents, ...expenseEvents];
+    // 주식 이벤트 (매입일 입력한 것만 표시)
+    const stockEvents: CalendarEvent[] = stocks.filter(s => s.purchaseDate)
+        .map(s => {
+            const date = new Date(s.purchaseDate as string | Date);
+            return {
+                id: s._id,
+                title: `📈 ${s.corpName} ${s.quantity ?? ''}주 매입`,
+                start: date,
+                end: date,
+                type: 'stock' as const,
+                resource: s,
+            }
+        })
+
+    const events: CalendarEvent[] = [...scheduleEvents, ...expenseEvents, ...stockEvents];
 
     // ─── 이벤트 스타일 ───────────────────────────────────────
     const eventStyleGetter = useCallback((event: CalendarEvent) => {
+        if(event.type === 'stock') {
+            return {
+                style: {
+                    backgroundColor: '#eff6ff',
+                    borderLeft: '3px solid #3b82f6',
+                    borderRadius: '4px',
+                    color: '#1d4ed8',
+                    fontSize: '11px',
+                    padding: '2px 6px',
+                },
+            };
+        }
+
         if (event.type === 'income') {
             return {
                 style: {
@@ -211,27 +253,24 @@ function SchedulesPage() {
         };
     }, [CATEGORY_COLORS]);
 
-    // ─── 빈 날짜 드래그 범위 선택 → 생성 모달 ───────────────
-    const handleSelectSlot = useCallback(({ start, end }: { start: Date; end: Date }) => {
-        const startStr = format(start, 'yyyy-MM-dd');
-        const startTimeStr = format(start, 'HH:mm');
-        const endStr = format(end, 'yyyy-MM-dd');
-        const endTimeStr = format(end, 'HH:mm');
-        setEditingId(null);
-        setForm({
-            ...emptyForm,
-            date: startStr,
-            startTime: startTimeStr === '00:00' ? '' : startTimeStr,
-            endDate: startStr === endStr ? '' : endStr,
-            endTime: endTimeStr === '00:00' ? '' : endTimeStr,
-        });
-        setShowModal(true);
+    // ─── 빈 날짜 클릭/드래그 → 사이드 패널 열기 ─────────────
+    const handleSelectSlot = useCallback(({ start }: { start: Date; end: Date }) => {
+        setSelectedDate(start);
     }, []);
 
-    // ─── 이벤트 클릭 ────────────────────────────────────────
+    // ─── 이벤트 클릭 → 사이드 패널 열기 ─────────────────────
     const handleSelectEvent = useCallback((event: CalendarEvent) => {
+        setSelectedDate(event.start);
+    }, []);
+
+    // ─── 사이드 패널 이벤트 클릭 ─────────────────────────────
+    const handlePanelEventClick = useCallback((event: CalendarEvent) => {
         if (event.type === 'expense' || event.type === 'income') {
             navigate('/expenses');
+            return;
+        }
+        if (event.type === 'stock') {
+            navigate('/finance');
             return;
         }
         const s = event.resource as Schedule;
@@ -304,11 +343,26 @@ function SchedulesPage() {
         showMore: (count: number) => `+${count}개 더 보기`,
     };
 
+    // ─── 선택된 날짜의 이벤트 목록 ──────────────────────────
+    const selectedDateEvents = selectedDate
+        ? events.filter(e => format(e.start, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd'))
+        : [];
+
+    const getPanelEventStyle = (event: CalendarEvent) => {
+        if (event.type === 'stock')   return { backgroundColor: '#eff6ff', borderLeft: '3px solid #3b82f6', color: '#1d4ed8' };
+        if (event.type === 'income')  return { backgroundColor: '#f0fdf4', borderLeft: '3px solid #22c55e', color: '#166534' };
+        if (event.type === 'expense') return { backgroundColor: '#fef2f2', borderLeft: '3px solid #ef4444', color: '#991b1b' };
+        const s = event.resource as Schedule;
+        const color = CATEGORY_COLORS[s.category] ?? DEFAULT_COLOR;
+        return { backgroundColor: color + '22', borderLeft: `3px solid ${color}`, color: '#374151' };
+    };
+
     return (
         <>
             {error && <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">{error}</div>}
 
-            <div className="bg-white p-6 rounded-lg shadow">
+            <div className="flex gap-4 items-start">
+            <div className="bg-white p-6 rounded-lg shadow flex-1 min-w-0">
                 <div className="flex justify-between items-center mb-4">
                     <h2 className="text-2xl font-bold">일정 관리</h2>
                     <button
@@ -343,6 +397,10 @@ function SchedulesPage() {
                         <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#eff6ff', border: '1px solid #3b82f6' }} />
                         토요일
                     </span>
+                    <span className="flex items-center gap-1">
+                        <span className="inline-block w-3 h-3 rounded" style={{ backgroundColor: '#eff6ff', border: '1px solid #3b82f6' }} />
+                        주식 매입
+                    </span>
                 </div>
 
                 {loading ? (
@@ -373,15 +431,17 @@ function SchedulesPage() {
                                 const isSunday = value.getDay() === 0;
                                 const isSaturday = value.getDay() === 6;
                                 const isHoliday = holidaySet.has(dateStr);
+                                const isSelected = selectedDate && format(selectedDate, 'yyyy-MM-dd') === dateStr;
 
                                 let bg = 'transparent';
-                                if (isHoliday || isSunday) bg = '#fee2e2';
+                                if (isSelected) bg = '#e0e7ff';
+                                else if (isHoliday || isSunday) bg = '#fee2e2';
                                 else if (isSaturday) bg = '#eff6ff';
 
                                 return (
                                     <div
                                         style={{ flex: 1, cursor: 'pointer', backgroundColor: bg }}
-                                        onClick={() => openCreateModal(value)}
+                                        onClick={() => setSelectedDate(value)}
                                     >
                                         {children}
                                     </div>
@@ -428,6 +488,82 @@ function SchedulesPage() {
                         }}
                     />
                 )}
+            </div>
+
+            {/* ─── 사이드 패널 ─────────────────────────────── */}
+            {selectedDate && (
+                <div className="w-72 flex-shrink-0 bg-white rounded-lg shadow border border-gray-200 flex flex-col sticky top-4" style={{ maxHeight: '780px' }}>
+                    {/* 패널 헤더 */}
+                    <div className="flex justify-between items-start p-4 border-b">
+                        <div>
+                            <p className="text-xs text-gray-400">{format(selectedDate, 'yyyy년 M월', { locale: ko })}</p>
+                            <p className="text-xl font-bold text-gray-900">{format(selectedDate, 'd일 (eee)', { locale: ko })}</p>
+                            {holidayNameMap.get(format(selectedDate, 'yyyy-MM-dd')) && (
+                                <p className="text-xs text-red-500 mt-0.5">
+                                    {holidayNameMap.get(format(selectedDate, 'yyyy-MM-dd'))}
+                                </p>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => setSelectedDate(null)}
+                            className="text-gray-400 hover:text-gray-700 text-xl leading-none mt-1"
+                        >×</button>
+                    </div>
+
+                    {/* 이벤트 목록 */}
+                    <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-2">
+                        {selectedDateEvents.length === 0 ? (
+                            <p className="text-gray-400 text-sm text-center py-6">이 날의 일정이 없습니다</p>
+                        ) : (
+                            selectedDateEvents.map(event => {
+                                const style = getPanelEventStyle(event);
+                                const isSchedule = event.type === 'schedule';
+                                const isExpense  = event.type === 'expense' || event.type === 'income';
+                                const isStock    = event.type === 'stock';
+                                const s = isSchedule ? event.resource as Schedule : null;
+                                const ex = isExpense ? event.resource as Expense : null;
+                                const st = isStock ? event.resource as UserStock : null;
+
+                                return (
+                                    <div
+                                        key={event.id}
+                                        onClick={() => handlePanelEventClick(event)}
+                                        className="rounded-lg p-3 cursor-pointer hover:opacity-75 transition-opacity"
+                                        style={style}
+                                    >
+                                        <p className="text-sm font-semibold leading-snug">{event.title}</p>
+                                        {isSchedule && s && (
+                                            <p className="text-xs mt-1 opacity-70">
+                                                {format(event.start, 'HH:mm') !== '00:00' ? format(event.start, 'HH:mm') + ' · ' : ''}
+                                                {s.category}
+                                                {s.isRecurring ? ' 🔁' : ''}
+                                            </p>
+                                        )}
+                                        {isExpense && ex && (
+                                            <p className="text-xs mt-1 opacity-70">{ex.category}</p>
+                                        )}
+                                        {isStock && st && (
+                                            <p className="text-xs mt-1 opacity-70">
+                                                평균 {st.currency === 'USD' ? `$${st.avgPrice?.toLocaleString()}` : `${st.avgPrice?.toLocaleString()}원`}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* 일정 추가 버튼 */}
+                    <div className="p-3 border-t">
+                        <button
+                            onClick={() => openCreateModal(selectedDate)}
+                            className="w-full py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+                        >
+                            + 일정 추가
+                        </button>
+                    </div>
+                </div>
+            )}
             </div>
 
             {/* ─── 생성/수정 모달 ─────────────────────────── */}

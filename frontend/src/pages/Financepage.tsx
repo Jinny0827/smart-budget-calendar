@@ -66,6 +66,9 @@ export default function FinancePage() {
     const [showModal,   setShowModal]   = useState(false);
     const [refreshKey,  setRefreshKey]  = useState(0);
 
+    // 환율 상태 추가
+    const [usdKrw, setUsdKrw] = useState<number | null>(null);
+
     // ── 자동완성 ──
     useEffect(() => {
         if (query.trim().length < 2) { setSuggestions([]); return; }
@@ -108,6 +111,13 @@ export default function FinancePage() {
 
         return () => clearInterval(interval);
     }, [refreshCooldownEnd]);
+
+    useEffect(() => {
+        fetch(`${API_BASE}/exchange-rate`)
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.usdKrw) setUsdKrw(d.usdKrw); })
+            .catch(() => {});
+    }, [])
 
     // 렌더링 시 사용할 변수
     const isRefreshing = refreshCooldownEnd !== null;
@@ -392,6 +402,7 @@ export default function FinancePage() {
                     result={result}
                     onClose={() => setShowModal(false)}
                     onRegister={handleRegister}
+                    usdKrw={usdKrw ?? undefined}
                 />
             )}
         </div>

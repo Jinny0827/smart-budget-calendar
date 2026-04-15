@@ -14,6 +14,17 @@ export interface IUserStock extends Document {
     currency?: 'KRW' | 'USD';
     addedAt: Date;
     updatedAt: Date;
+    purchaseDate?: Date;
+
+    transactions?: {
+        type: 'buy' | 'edit';
+        quantity: number;
+        price: number;
+        totalQty: number;
+        avgPrice: number;
+        purchaseDate?: Date;
+        createdAt: Date;
+    }[];
 }
 
 const UserStockSchema = new Schema<IUserStock>({
@@ -30,6 +41,16 @@ const UserStockSchema = new Schema<IUserStock>({
     currency:   { type: String, enum: ['KRW', 'USD'] },
     addedAt:    { type: Date, default: Date.now },
     updatedAt:  { type: Date, default: Date.now },
+    purchaseDate: { type: Date },
+    transactions: [{
+        type:         { type: String, enum: ['buy', 'edit'] },
+        quantity:     { type: Number },
+        price:        { type: Number },
+        totalQty:     { type: Number },
+        avgPrice:     { type: Number },
+        purchaseDate: { type: Date },
+        createdAt:    { type: Date, default: Date.now },
+    }]
 });
 
 UserStockSchema.index({ userId: 1, ticker: 1, market: 1 }, { unique: true });

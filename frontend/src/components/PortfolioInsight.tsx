@@ -12,8 +12,10 @@ export function PortfolioInsight({hasPortfolio}: Props) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [expanded, setExpanded] = useState(false);
-    const [lastRefreshed, setLastRefreshed] = useState<number>(0);
     const COOLDOWN_MS = 5 * 60 * 1000;
+    const STORAGE_KEY = 'portfolioInsightLastRefreshed';
+    const getLastRefreshed = () => Number(localStorage.getItem(STORAGE_KEY) ?? '0');
+    const setLastRefreshed = () => localStorage.setItem(STORAGE_KEY, String(Date.now()));
 
 
     useEffect(() => {
@@ -26,14 +28,14 @@ export function PortfolioInsight({hasPortfolio}: Props) {
 
     const fetchInsight = async (force = false) => {
         if(force) {
-            const remaining = COOLDOWN_MS - (Date.now() - lastRefreshed);
+            const remaining = COOLDOWN_MS - (Date.now() - getLastRefreshed());
             if (remaining > 0) {
                 const min = Math.ceil(remaining / 60000);
                 alert(`${min}분 후에 새로고침할 수 있습니다`);
                 return;
             }
 
-            setLastRefreshed(Date.now());
+            setLastRefreshed();
         }
 
 
@@ -97,8 +99,8 @@ export function PortfolioInsight({hasPortfolio}: Props) {
                         {insight.riskLevel}
                     </span>
                     {(() => {
-                        const remaining = COOLDOWN_MS - (Date.now() - lastRefreshed);
-                        const canRefresh = lastRefreshed === 0 || remaining <= 0;
+                        const remaining = COOLDOWN_MS - (Date.now() - getLastRefreshed());
+                        const canRefresh = getLastRefreshed() === 0 || remaining <= 0;
                         const label = canRefresh ? '새로고침' : `${Math.ceil(remaining / 60000)}분 후 가능`;
 
                         return (

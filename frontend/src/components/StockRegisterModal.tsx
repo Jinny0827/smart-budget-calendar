@@ -5,6 +5,7 @@ interface Props {
     result: AnalyzeResult;
     onClose: () => void;
     onRegister: (payload: RegisterPayload) => Promise<void>;
+    usdKrw?: number;
 }
 
 export interface RegisterPayload {
@@ -17,12 +18,16 @@ export interface RegisterPayload {
     quantity?: number;
     avgPrice?: number;
     currency: 'KRW' | 'USD';
+    purchaseDate?: string;
 }
 
-export default function StockRegisterModal({ result, onClose, onRegister }: Props) {
+export default function StockRegisterModal({ result, onClose, onRegister, usdKrw }: Props) {
     const [type,     setType]     = useState<'watchlist' | 'portfolio'>('watchlist');
     const [quantity, setQuantity] = useState('');
     const [avgPrice, setAvgPrice] = useState('');
+    const [purchaseDate, setPurchaseDate] = useState('');
+    const [useCurrentPrice, setUseCurrentPrice] = useState(false);
+    const [customRate, setCustomRate]           = useState('');
     const [loading,  setLoading]  = useState(false);
     const [error,    setError]    = useState<string | null>(null);
 
@@ -64,6 +69,7 @@ export default function StockRegisterModal({ result, onClose, onRegister }: Prop
                 quantity:  type === 'portfolio' ? Number(quantity) : undefined,
                 avgPrice:  type === 'portfolio' ? Number(avgPrice) : undefined,
                 currency,
+                purchaseDate: type === 'portfolio' && purchaseDate ? purchaseDate : undefined,
             });
         } catch (e: any) {
             setError(e.message ?? '등록 실패');
@@ -193,16 +199,26 @@ export default function StockRegisterModal({ result, onClose, onRegister }: Prop
 
                         {/* 평균 매입가 */}
                         <div>
-                            <label style={{ color: '#9ca3af', fontSize: 12 }}>
-                                평균 매입가
-                                <span style={{
-                                    marginLeft: 6, fontSize: 11,
-                                    color: isUs ? '#60a5fa' : '#4ade80',
-                                    fontWeight: 'bold',
-                                }}>
-                                    {isUs ? '$ USD' : '₩ KRW'}
-                                </span>
-                            </label>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <label style={{ color: '#9ca3af', fontSize: 12 }}>
+                                    평균 매입가 <span style={{ color: isUs ? '#60a5fa' : '#4ade80', fontWeight: 'bold', fontSize: 11 }}>{isUs ? '$ USD' : '₩ KRW'}</span>
+                                </label>
+                                {currentPrice && (
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 4, cursor: 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            checked={useCurrentPrice}
+                                            onChange={e => {
+                                                setUseCurrentPrice(e.target.checked);
+                                                if (e.target.checked) setAvgPrice(String(currentPrice));
+                                                else setAvgPrice('');
+                                            }}
+                                            style={{ accentColor: '#3b82f6' }}
+                                        />
+                                        <span style={{ fontSize: 11, color: '#60a5fa' }}>현재가로 입력</span>
+                                    </label>
+                                )}
+                            </div>
                             <div style={{ position: 'relative', marginTop: 4 }}>
                                 <span style={{
                                     position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)',
@@ -227,19 +243,72 @@ export default function StockRegisterModal({ result, onClose, onRegister }: Prop
                             </div>
                         </div>
 
+
                         {/* 총 매입금액 미리보기 */}
                         {quantity && avgPrice && !isNaN(Number(quantity)) && !isNaN(Number(avgPrice)) && (
-                            <div style={{
-                                background: '#1f2937', borderRadius: 8, padding: '8px 12px',
-                                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                            }}>
-                                <span style={{ color: '#6b7280', fontSize: 12 }}>총 매입금액</span>
-                                <span style={{ color: '#fff', fontSize: 13, fontWeight: 'bold' }}>
-                                    {isUs
-                                        ? `$${(Number(quantity) * Number(avgPrice)).toLocaleString()}`
-                                        : `${(Number(quantity) * Number(avgPrice)).toLocaleString()}원`
-                                    }
-                                </span>
+                            <div style={{ background: '#1f2937', borderRadius: 8, padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                    <span style={{ color: '#6b7280', fontSize: 12 }}>총 매입금액</span>
+                                    <span style={{ color: '#fff', fontSize: 13, fontWeight: 'bold' }}>
+                                        {isUs
+                                            ? `$${(Number(quantity) * Number(avgPrice)).toLocaleString()}`
+                                            : `${(Number(quantity) * Number(avgPrice)).toLocaleString()}원`}
+                                    </span>
+                                </div>
+                                {isUs && (customRate || usdKrw) && (
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: '#4b5563', fontSize: 11 }}>≈ 원화 환산</span>
+                                        <span style={{ color: '#9ca3af', fontSize: 11 }}>
+                                            {Math.round(Number(quantity) * Number(avgPrice) * Number(customRate || usdKrw)).toLocaleString()}원
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+
+                        {/* 매입일 */}
+                        <div>
+                            <label style={{ color: '#9ca3af', fontSize: 12 }}>
+                                매입일
+                                <span style={{ marginLeft: 6, fontSize: 11, color: '#4b5563' }}>(선택 · 입력 시 달력 및 인사이트에 반영)</span>
+                            </label>
+                            <input
+                                type="date"
+                                value={purchaseDate}
+                                onChange={e => setPurchaseDate(e.target.value)}
+                                style={{
+                                    width: '100%', marginTop: 4,
+                                    background: '#1f2937', border: '1px solid #374151',
+                                    borderRadius: 8, padding: '10px 12px',
+                                    color: purchaseDate ? '#fff' : '#6b7280', fontSize: 14,
+                                    boxSizing: 'border-box', outline: 'none',
+                                }}
+                            />
+                        </div>
+
+                        {/* 환율 (USD 전용) */}
+                        {isUs && (
+                            <div>
+                                <label style={{ color: '#9ca3af', fontSize: 12 }}>
+                                    환율 (USD/KRW)
+                                    <span style={{ marginLeft: 6, fontSize: 11, color: '#4b5563' }}>
+                                        (자동: {usdKrw ? `${usdKrw.toLocaleString()}원` : '조회 중'})
+                                    </span>
+                                </label>
+                                <input
+                                    type="number"
+                                    value={customRate}
+                                    onChange={e => setCustomRate(e.target.value)}
+                                    placeholder={usdKrw ? String(usdKrw) : '1430'}
+                                    style={{
+                                        width: '100%', marginTop: 4,
+                                        background: '#1f2937', border: '1px solid #374151',
+                                        borderRadius: 8, padding: '10px 12px',
+                                        color: '#fff', fontSize: 14,
+                                        boxSizing: 'border-box', outline: 'none',
+                                    }}
+                                />
                             </div>
                         )}
                     </div>

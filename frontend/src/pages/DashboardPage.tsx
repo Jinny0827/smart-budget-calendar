@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getExpenses, getExpenseStats } from '../services/expense-service';
 import { getSchedules } from '../services/schedule-service';
-import { getInsights } from '../services/insight-service';
-import type { Expense, Schedule, ExpenseStats, InsightResult } from '../types';
+import { DashboardInsight } from '../components/DashboardInsight';
+import type { Expense, Schedule, ExpenseStats } from '../types';
 import {
     PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer,
     BarChart, Bar, XAxis, YAxis, CartesianGrid
@@ -39,10 +39,8 @@ function DashboardPage() {
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [schedules, setSchedules] = useState<Schedule[]>([]);
     const [stats, setStats] = useState<ExpenseStats | null>(null);
-    const [insights, setInsights] = useState<InsightResult[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [insightError, setInsightError] = useState(false); // AI 인사이트 에러 상태
 
     const now = new Date();
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
@@ -61,20 +59,6 @@ function DashboardPage() {
                 setSchedules(scheduleData);
                 setStats(statsData);
 
-                // 인사이트는 expenses 로드 후 별도 처리
-                try {
-                    setInsightError(false);
-                    const insightData = await getInsights();
-
-                    // 지출이 있는데 인사이트가 비면 Groq 장애로 판단
-                    if (insightData.length === 0 && expenseData.length > 0) {
-                        setInsightError(true);
-                    } else {
-                        setInsights(insightData);
-                    }
-                } catch {
-                    setInsightError(true);
-                }
             } catch (err) {
                 setError('데이터를 불러오는데 실패했습니다');
             } finally {
@@ -236,40 +220,8 @@ function DashboardPage() {
                             )}
                         </div>
 
-                        {/* AI 인사이트 */}
-                        <div className="bg-white p-6 rounded-lg shadow md:col-span-2">
-                            <h2 className="text-xl font-bold mb-4">🤖 AI 인사이트</h2>
-                            {insightError ? (
-                                // AI 서비스 에러 시
-                                <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg text-gray-500">
-                                    <span className="text-2xl">🔧</span>
-                                    <div>
-                                        <p className="font-medium">AI 분석 서비스 점검 중입니다</p>
-                                        <p className="text-sm text-gray-400 mt-1">잠시 후 다시 시도해주세요</p>
-                                    </div>
-                                </div>
-                            ) : insights.length > 0 ? (
-                                <ul className="space-y-3">
-                                    {insights.map((insight, idx) => (
-                                        <li key={idx} className={`p-4 rounded-lg border-l-4 ${
-                                            insight.priority === 'high' ? 'bg-red-50 border-red-500'
-                                                : insight.priority === 'medium' ? 'bg-yellow-50 border-yellow-400'
-                                                    : 'bg-green-50 border-green-400'
-                                        }`}>
-                                            <p className="text-gray-800">{insight.content}</p>
-                                            {insight.data.changeRate !== undefined && (
-                                                <p className="text-xs text-gray-500 mt-1">
-                                                    현재: {insight.data.amount?.toLocaleString()}원 / 평균: {insight.data.averageAmount?.toLocaleString()}원
-                                                </p>
-                                            )}
-                                        </li>
-                                    ))}
-                                </ul>
-                            ) : (
-                                // 데이터 없음
-                                <p className="text-gray-400 text-center py-4">분석할 데이터가 없습니다. 지출을 추가해보세요!</p>
-                            )}
-                        </div>
+                        {/* 통합 AI 인사이트 */}
+                        <DashboardInsight/>
 
                     </div>
                 </>
