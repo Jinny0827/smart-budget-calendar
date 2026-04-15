@@ -22,7 +22,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         { path: '/schedules', label: '일정 관리' },
         { path: '/expenses', label: '지출 관리' },
         { path: '/finance', label: '주식 분석' },
-        { path: '/groups', label: '그룹' },
         { path: '/board', label: '게시판' },
     ];
 
@@ -33,8 +32,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                     <h1 className="text-2xl font-bold text-gray-900">스마트 가계부</h1>
                     <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-gray-700 hidden sm:inline">{user?.name}님</span>
-                        <button onClick={() => navigate('/account')} className="px-3 py-2 text-gray-600 hover:text-blue-600 text-sm">
-                            계정 관리
+                        <button onClick={() => navigate('/manage')} className="px-3 py-2 text-gray-600 hover:text-blue-600 text-sm">
+                            관리
                         </button>
                         <button onClick={handleLogout} className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm">
                             로그아웃

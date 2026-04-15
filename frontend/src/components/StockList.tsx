@@ -199,14 +199,14 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
     return (
         <div className="flex flex-col gap-4 h-full">
 
-            {/* 탭 + 등록 버튼 */}
-            <div className="flex justify-between items-center">
+            {/* 탭 + 등록 버튼: 모바일 세로 / sm 이상 가로 */}
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
                 <div className="flex bg-gray-100 rounded-lg p-1 gap-1">
                     {([['portfolio', '💼 보유'], ['watchlist', '👀 관심']] as const).map(([key, label]) => (
                         <button
                             key={key}
                             onClick={() => setTab(key)}
-                            className={`px-4 py-1.5 text-sm rounded-md ${
+                            className={`flex-1 sm:flex-none px-4 py-2 text-sm rounded-md ${
                                 tab === key ? 'bg-blue-600 text-white font-semibold' : 'text-gray-700 hover:bg-gray-200'
                             }`}
                         >
@@ -216,7 +216,7 @@ export default function StockList({ onRegisterClick, refreshKey }: Props) {
                 </div>
                 <button
                     onClick={onRegisterClick}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
+                    className="w-full sm:w-auto px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-bold hover:bg-blue-700"
                 >
                     + 종목 등록
                 </button>

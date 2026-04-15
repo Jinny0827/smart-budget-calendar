@@ -219,8 +219,7 @@ function AdminPage() {
     };
 
     return (
-        <div className="min-h-screen bg-gray-100 py-8 px-4">
-            <div className="max-w-3xl mx-auto">
+        <div className="max-w-3xl mx-auto">
 
                 <div className="flex items-center gap-3 mb-6">
                     <button
@@ -463,7 +462,6 @@ function AdminPage() {
                     </div>
                 )}
 
-            </div>
         </div>
     );
 }

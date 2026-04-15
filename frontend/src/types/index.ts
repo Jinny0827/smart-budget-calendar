@@ -37,6 +37,12 @@ export interface RegisterResponse {
     message: string;
 }
 
+// 반복 종료 조건 (일정·지출 공통)
+export interface RecurringEnd {
+    type: 'forever' | 'date';
+    endDate?: string;
+}
+
 // 일정
 export interface Schedule {
     _id: string;
@@ -51,6 +57,8 @@ export interface Schedule {
         frequency: 'daily' | 'weekly' | 'monthly';
         interval: number;
     };
+    recurringEnd?: RecurringEnd;
+    recurringGroupId?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -65,6 +73,13 @@ export interface Expense {
     date: string;
     scheduleId?: string;
     type: 'income' | 'expense';
+    isRecurring?: boolean;
+    recurringPattern?: {
+        frequency: 'daily' | 'weekly' | 'monthly';
+        interval: number;
+    };
+    recurringEnd?: RecurringEnd;
+    recurringGroupId?: string;
     createdAt: string;
     updatedAt: string;
 }

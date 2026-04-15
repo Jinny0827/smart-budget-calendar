@@ -11,6 +11,16 @@ export interface IExpense extends Document {
     type: 'income' | 'expense';
     createdAt: Date;
     updatedAt: Date;
+    isRecurring?: boolean;
+    recurringPattern?: {
+        frequency: 'daily' | 'weekly' | 'monthly';
+        interval: number;
+    };
+    recurringEnd?: {
+        type: 'forever' | 'date';
+        endDate?: Date;
+    };
+    recurringGroupId?: string;
 }
 
 // Expense 스키마
@@ -55,7 +65,17 @@ const ExpenseSchema = new Schema<IExpense>(
         scheduleId: {
             type: Schema.Types.ObjectId,
             ref: 'Schedule'
-        }
+        },
+        isRecurring: { type: Boolean, default: false },
+        recurringPattern: {
+            frequency: { type: String, enum: ['daily', 'weekly', 'monthly'] },
+            interval:  { type: Number, min: 1 },
+        },
+        recurringEnd: {
+            type: { type: String, enum: ['forever', 'date'] },
+            endDate: { type: Date },
+        },
+        recurringGroupId: { type: String },
     },
     {
         timestamps: true

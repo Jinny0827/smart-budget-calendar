@@ -11,6 +11,7 @@ import ExpensesPage from './pages/ExpensesPage';
 import AccountPage from './pages/AccountPage';
 import AdminPage from './pages/AdminPage';
 import GroupPage from './pages/GroupPage';
+import ManagePage from './pages/ManagePage';
 import BoardPage from './pages/BoardPage';
 import LandingPage from './pages/LandingPage';
 import FootMeasurePage from './pages/FootMeasurePage';
@@ -115,22 +116,18 @@ function App() {
                     }
                 />
 
+                {/* 관리 통합 페이지 */}
                 <Route
-                    path="/account"
+                    path="/manage"
                     element={
                         <PrivateRoute>
-                            <AccountPage />
+                            <ManagePage />
                         </PrivateRoute>
                     }
                 />
-                <Route
-                    path="/groups"
-                    element={
-                        <PrivateRoute>
-                            <GroupPage />
-                        </PrivateRoute>
-                    }
-                />
+                {/* 하위 호환: 기존 경로 → /manage 리다이렉트 */}
+                <Route path="/account" element={<Navigate to="/manage" />} />
+                <Route path="/groups"  element={<Navigate to="/manage" />} />
                 <Route
                     path="/admin"
                     element={

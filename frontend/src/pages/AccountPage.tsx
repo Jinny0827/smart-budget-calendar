@@ -4,7 +4,7 @@ import { getMe, setupOtp, enableOtp, disableOtp } from '../services/auth-service
 import {updateNickname, changePassword, deleteAccount} from '../services/user-service';
 import type { User } from '../types';
 
-function AccountPage() {
+function AccountPage({ standalone = true }: { standalone?: boolean }) {
     const navigate = useNavigate();
     const [user, setUser] = useState<User | null>(null);
     const [pageLoading, setPageLoading] = useState(true);
@@ -161,25 +161,26 @@ function AccountPage() {
 
     if (pageLoading) {
         return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+            <div className="flex items-center justify-center py-20">
                 <p className="text-gray-500">불러오는 중...</p>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-100 py-8 px-4">
-            <div className="max-w-lg mx-auto space-y-6">
+        <div className={standalone ? 'max-w-lg mx-auto space-y-6' : 'space-y-6'}>
 
-                <div className="flex items-center gap-3">
-                    <button
-                        onClick={() => navigate('/dashboard')}
-                        className="text-gray-500 hover:text-gray-700 text-sm"
-                    >
-                        ← 대시보드
-                    </button>
-                    <h1 className="text-2xl font-bold">계정 관리</h1>
-                </div>
+                {standalone && (
+                    <div className="flex items-center gap-3">
+                        <button
+                            onClick={() => navigate('/dashboard')}
+                            className="text-gray-500 hover:text-gray-700 text-sm"
+                        >
+                            ← 대시보드
+                        </button>
+                        <h1 className="text-2xl font-bold">계정 관리</h1>
+                    </div>
+                )}
 
                 {/* 현재 계정 정보 */}
                 <div className="bg-white rounded-lg shadow p-6">
@@ -412,7 +413,6 @@ function AccountPage() {
                     )}
                 </div>
 
-            </div>
         </div>
     );
 }

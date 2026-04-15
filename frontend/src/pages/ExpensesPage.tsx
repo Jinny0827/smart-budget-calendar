@@ -12,6 +12,23 @@ import { importCardHistory } from "../services/import-service.ts";
 const EXPENSE_CATEGORIES = ['식비', '교통', '의료', '운동', '여행', '쇼핑', '문화', '교육', '기타'];
 const INCOME_CATEGORIES = ['급여', '부업', '사업', '투자', '용돈', '환급', '기타'];
 
+// 반복 주기 옵션
+const RECURRING_OPTIONS = [
+    { value: 'daily',     label: '매일', frequency: 'daily'   as const, interval: 1 },
+    { value: 'weekly',    label: '매주', frequency: 'weekly'  as const, interval: 1 },
+    { value: 'biweekly',  label: '격주', frequency: 'weekly'  as const, interval: 2 },
+    { value: 'monthly',   label: '매월', frequency: 'monthly' as const, interval: 1 },
+    { value: 'bimonthly', label: '격월', frequency: 'monthly' as const, interval: 2 },
+];
+const getRecurringValue = (frequency: string, interval: number): string => {
+    if (frequency === 'daily')                      return 'daily';
+    if (frequency === 'weekly'  && interval === 1)  return 'weekly';
+    if (frequency === 'weekly'  && interval === 2)  return 'biweekly';
+    if (frequency === 'monthly' && interval === 1)  return 'monthly';
+    if (frequency === 'monthly' && interval === 2)  return 'bimonthly';
+    return 'monthly';
+};
+
 // 빈 폼 초기값
 const emptyForm = {
     amount: '',
@@ -20,6 +37,9 @@ const emptyForm = {
     date: new Date().toISOString().split('T')[0],
     time: `${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`,
     type: 'expense' as 'income' | 'expense',
+    isRecurring: false,
+    recurringPattern: { frequency: 'monthly' as 'daily' | 'weekly' | 'monthly', interval: 1 },
+    recurringEnd: { type: 'forever' as 'forever' | 'date', endDate: '' },
 };
 
 function ExpensesPage() {
@@ -35,6 +55,37 @@ function ExpensesPage() {
     const [editingId, setEditingId] = useState<string | null>(null);
     const [form, setForm] = useState(emptyForm);
     const [submitting, setSubmitting] = useState(false);
+
+    // 체크박스 선택 상태
+    const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+    const handleToggleSelect = (id: string) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
+
+    const handleToggleAll = () => {
+        setSelectedIds(prev =>
+            prev.size === expenses.length
+                ? new Set()
+                : new Set(expenses.map(e => e._id))
+        );
+    };
+
+    const handleDeleteSelected = async () => {
+        if (selectedIds.size === 0) return;
+        if (!window.confirm(`선택한 ${selectedIds.size}건을 삭제하시겠습니까?`)) return;
+        try {
+            await Promise.all([...selectedIds].map(id => deleteExpense(id)));
+            setSelectedIds(new Set());
+            await fetchExpenses();
+        } catch {
+            alert('삭제에 실패했습니다');
+        }
+    };
 
     // 카드 가져오기 모달 상태
     const [showImportModal, setShowImportModal] = useState(false);
@@ -79,6 +130,9 @@ function ExpensesPage() {
             date: expense.date.split('T')[0],
             time: timeStr,
             type: expense.type || 'expense',
+            isRecurring: expense.isRecurring ?? false,
+            recurringPattern: expense.recurringPattern ?? { frequency: 'monthly', interval: 1 },
+            recurringEnd: expense.recurringEnd ?? { type: 'forever', endDate: '' },
         });
         setShowModal(true);
     };
@@ -97,6 +151,14 @@ function ExpensesPage() {
                 description: form.description,
                 date: form.time ? `${form.date}T${form.time}` : form.date,
                 type: form.type,
+                isRecurring: form.isRecurring,
+                recurringPattern: form.isRecurring ? form.recurringPattern : undefined,
+                recurringEnd: form.isRecurring
+                    ? {
+                        type: form.recurringEnd.type,
+                        endDate: form.recurringEnd.type === 'date' ? form.recurringEnd.endDate : undefined,
+                    }
+                    : undefined,
             };
             if (editingId) {
                 await updateExpense(editingId, payload);
@@ -112,16 +174,6 @@ function ExpensesPage() {
         }
     };
 
-    // 삭제
-    const handleDelete = async (id: string) => {
-        if (!window.confirm('지출을 삭제하시겠습니까?')) return;
-        try {
-            await deleteExpense(id);
-            await fetchExpenses();
-        } catch (err) {
-            alert('삭제에 실패했습니다');
-        }
-    };
 
     // 카드 내역 가져오기
     const handleImport = async () => {
@@ -159,7 +211,7 @@ function ExpensesPage() {
                 <div className="flex flex-wrap justify-between items-center mb-6 gap-3">
                     <h2 className="text-2xl font-bold">지출 관리</h2>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 flex-wrap">
                         {/* 카테고리 필터 */}
                         <select
                             value={filterCategory}
@@ -178,6 +230,16 @@ function ExpensesPage() {
                                 ))}
                             </optgroup>
                         </select>
+
+                        {/* 선택 삭제 버튼 (체크 시 표시) */}
+                        {selectedIds.size > 0 && (
+                            <button
+                                onClick={handleDeleteSelected}
+                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 text-sm"
+                            >
+                                🗑 {selectedIds.size}건 삭제
+                            </button>
+                        )}
 
                         <button
                             onClick={() => { setImportResult(''); setShowImportModal(true); }}
@@ -219,6 +281,14 @@ function ExpensesPage() {
                         <table className="w-full text-left">
                             <thead>
                             <tr className="border-b bg-gray-50">
+                                <th className="py-3 px-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={expenses.length > 0 && selectedIds.size === expenses.length}
+                                        onChange={handleToggleAll}
+                                        className="w-4 h-4 accent-red-500 cursor-pointer"
+                                    />
+                                </th>
                                 <th className="py-3 px-4 text-sm text-gray-600">날짜</th>
                                 <th className="py-3 px-4 text-sm text-gray-600">설명</th>
                                 <th className="py-3 px-4 text-sm text-gray-600 hidden sm:table-cell">유형</th>
@@ -229,7 +299,18 @@ function ExpensesPage() {
                             </thead>
                             <tbody>
                             {expenses.map((expense) => (
-                                <tr key={expense._id} className="border-b hover:bg-gray-50">
+                                <tr
+                                    key={expense._id}
+                                    className={`border-b hover:bg-gray-50 ${selectedIds.has(expense._id) ? 'bg-red-50' : ''}`}
+                                >
+                                    <td className="py-3 px-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedIds.has(expense._id)}
+                                            onChange={() => handleToggleSelect(expense._id)}
+                                            className="w-4 h-4 accent-red-500 cursor-pointer"
+                                        />
+                                    </td>
                                     <td className="py-3 px-4 text-gray-600 text-sm">
                                         {new Date(expense.date).toLocaleDateString('ko-KR')}
                                     </td>
@@ -244,9 +325,9 @@ function ExpensesPage() {
                                         </span>
                                     </td>
                                     <td className="py-3 px-4 hidden sm:table-cell">
-                                            <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
-                                                {expense.category}
-                                            </span>
+                                        <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full text-xs">
+                                            {expense.category}
+                                        </span>
                                     </td>
                                     <td className={`py-3 px-4 text-right font-semibold ${
                                         expense.type === 'income' ? 'text-green-500' : 'text-red-500'
@@ -256,15 +337,9 @@ function ExpensesPage() {
                                     <td className="py-3 px-4">
                                         <button
                                             onClick={() => handleOpenEdit(expense)}
-                                            className="mr-2 text-sm text-blue-500 hover:underline"
+                                            className="text-sm text-blue-500 hover:underline"
                                         >
                                             수정
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(expense._id)}
-                                            className="text-sm text-red-500 hover:underline"
-                                        >
-                                            삭제
                                         </button>
                                     </td>
                                 </tr>
@@ -371,6 +446,88 @@ function ExpensesPage() {
                                     />
                                 </div>
                             </div>
+
+                            {/* 반복 여부 */}
+                            {!editingId && (
+                                <div className="border rounded-lg p-3 space-y-3 bg-gray-50">
+                                    <div className="flex items-center gap-2">
+                                        <input
+                                            type="checkbox"
+                                            id="expIsRecurring"
+                                            checked={form.isRecurring}
+                                            onChange={(e) => setForm({ ...form, isRecurring: e.target.checked })}
+                                            className="w-4 h-4 accent-blue-500"
+                                        />
+                                        <label htmlFor="expIsRecurring" className="text-sm font-medium text-gray-700">반복 등록</label>
+                                    </div>
+
+                                    {form.isRecurring && (
+                                        <div className="pl-6 space-y-3">
+                                            {/* 주기 */}
+                                            <select
+                                                value={getRecurringValue(form.recurringPattern.frequency, form.recurringPattern.interval)}
+                                                onChange={(e) => {
+                                                    const opt = RECURRING_OPTIONS.find(o => o.value === e.target.value)!;
+                                                    setForm({
+                                                        ...form,
+                                                        recurringPattern: { frequency: opt.frequency, interval: opt.interval },
+                                                    });
+                                                }}
+                                                className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                            >
+                                                {RECURRING_OPTIONS.map(o => (
+                                                    <option key={o.value} value={o.value}>{o.label}</option>
+                                                ))}
+                                            </select>
+
+                                            {/* 종료 조건 */}
+                                            <div className="space-y-2">
+                                                <p className="text-sm font-medium text-gray-700">반복 종료</p>
+                                                <div className="flex gap-4">
+                                                    <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="expRecurringEnd"
+                                                            checked={form.recurringEnd.type === 'forever'}
+                                                            onChange={() =>
+                                                                setForm({ ...form, recurringEnd: { type: 'forever', endDate: '' } })
+                                                            }
+                                                            className="accent-blue-500"
+                                                        />
+                                                        계속
+                                                    </label>
+                                                    <label className="flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer">
+                                                        <input
+                                                            type="radio"
+                                                            name="expRecurringEnd"
+                                                            checked={form.recurringEnd.type === 'date'}
+                                                            onChange={() =>
+                                                                setForm({ ...form, recurringEnd: { type: 'date', endDate: '' } })
+                                                            }
+                                                            className="accent-blue-500"
+                                                        />
+                                                        날짜 지정
+                                                    </label>
+                                                </div>
+                                                {form.recurringEnd.type === 'date' && (
+                                                    <input
+                                                        type="date"
+                                                        value={form.recurringEnd.endDate}
+                                                        min={form.date}
+                                                        onChange={(e) =>
+                                                            setForm({
+                                                                ...form,
+                                                                recurringEnd: { type: 'date', endDate: e.target.value },
+                                                            })
+                                                        }
+                                                        className="border rounded px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
 
                         </div>
 
