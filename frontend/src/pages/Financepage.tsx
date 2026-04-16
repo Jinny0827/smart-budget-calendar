@@ -59,7 +59,13 @@ export default function FinancePage() {
     const acCache = useRef<Record<string, string[]>>({});
 
     // 쿨 다운 관련 상태 값 추가
-    const [refreshCooldownEnd, setRefreshCooldownEnd] = useState<number | null>(null);
+    const [refreshCooldownEnd, setRefreshCooldownEnd] = useState<number | null>(() => {
+        const saved = localStorage.getItem('stockRefreshCooldownEnd');
+        if (!saved) return null;
+        const end = Number(saved);
+        return end > Date.now() ? end : null;
+    });
+
     const [cooldownText, setCooldownText] = useState('');
     
     // 종목 등록 모달
@@ -101,6 +107,7 @@ export default function FinancePage() {
 
             if(timeLeft <= 0) {
                 setRefreshCooldownEnd(null);
+                localStorage.removeItem('stockRefreshCooldownEnd');
             } else {
                 const minutes = Math.floor(timeLeft / 60);
                 const seconds = timeLeft % 60;
@@ -141,6 +148,7 @@ export default function FinancePage() {
         } catch (e: any) {
             setError(e.message || '서버 오류가 발생했습니다');
             setStep('search');
+            throw e;
         }
     };
 
@@ -376,10 +384,15 @@ export default function FinancePage() {
 
                                 <div className="p-4 border-t border-gray-200 flex flex-col items-center gap-2">
                                     <button
-                                        onClick={() => {
-                                            handleSearch(true);
-                                            // 5분 (300,000 밀리초) 후로 쿨다운 설정
-                                            setRefreshCooldownEnd(Date.now() + 300000);
+                                        onClick={ async () => {
+                                            try {
+                                                await handleSearch(true);
+                                                const end = Date.now() + 300000;
+                                                setRefreshCooldownEnd(end);
+                                                localStorage.setItem('stockRefreshCooldownEnd', String(end));
+                                            } catch {
+                                                // 실패 시 쿨다운 없음
+                                            }
                                         }}
                                         disabled={isRefreshing}
                                         className={`px-3.5 py-1.5 border border-gray-300 rounded-md text-gray-600 text-xs hover:bg-gray-50 ${isRefreshing ? 'opacity-60 cursor-not-allowed' : ''}`}
@@ -885,20 +898,6 @@ function InsightTab({ insight, news }: { insight?: Insight; news?: SectorNews[] 
 // ══════════════════════════════════════════════════════════
 // 공통 서브 컴포넌트
 // ══════════════════════════════════════════════════════════
-function ScoreBar({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
-    const pct = Math.round((value / max) * 100);
-    return (
-        <div className="bg-gray-50 rounded-lg p-2.5">
-            <div className="flex justify-between mb-1.5">
-                <span className="text-gray-600 text-xs">{label}</span>
-                <span style={{ color }} className="text-xs font-bold">{value}/{max}</span>
-            </div>
-            <div className="bg-gray-200 rounded-md h-1.5">
-                <div style={{ background: color, width: `${pct}%` }} className="h-full rounded-md transition-all duration-300" />
-            </div>
-        </div>
-    );
-}
 
 function SectionCard({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
     return (
